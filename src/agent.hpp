@@ -27,9 +27,9 @@ public:
     int getBinIndexById(std::vector<AppleBin> bins, int id);
     
     void takeAction(int *binCounter, std::vector<AppleBin> &bins, std::vector<AppleBin> &repo, 
-        std::vector<Agent> agents, Orchard env, std::vector<Coordinate> &newLocs);
+        std::vector<Agent> &agents, Orchard env, std::vector<Coordinate> &newLocs);
     
-    void move(AppleBin curBin);
+    void move(AppleBin *curBin);
     
 private:
     int id;

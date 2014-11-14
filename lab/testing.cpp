@@ -8,9 +8,26 @@ struct TestData {
     TestData(int i, float v) : id(i), val(v) {}
 };
 
+void function2(TestData *d)
+{
+    d->val = 2.3;
+}
+
+void function1(std::vector<TestData> &data)
+{
+    function2(&data[2]);
+}
+
 int main(int argc, char **argv)
 {
-    std::vector<TestData> avec;
+    std::vector<TestData> data;
+    for (int a = 0; a < 5; ++a)
+        data.push_back(TestData(a, 1.5));
+    function1(data);
+    for (int a = 0; a < (int) data.size(); ++a)
+        printf("data id: %d, val: %f\n", data[a].id, data[a].val);
+    
+    /*std::vector<TestData> avec;
     
     for (int a = 0; a < 5; ++a)
         avec.push_back(TestData(a, 1.5));
@@ -27,7 +44,7 @@ int main(int argc, char **argv)
         printf("avec id: %d, val: %f\n", avec[a].id, avec[a].val);
     printf("\n");
     for (int b = 0; b < (int) bvec.size(); ++b)
-        printf("bvec id: %d, val: %f\n", bvec[b].id, bvec[b].val);
+        printf("bvec id: %d, val: %f\n", bvec[b].id, bvec[b].val);*/
     
     return 0;
 }

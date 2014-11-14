@@ -97,14 +97,14 @@ bool Agent::isLocationValid(Coordinate loc)
     return (loc.x >= 0 && loc.x < ORCH_COLS && loc.y >= 0 && loc.y < ORCH_ROWS);
 }
 
-void Agent::move(AppleBin curBin)
+void Agent::move(AppleBin *curBin)
 {
     // Check if all locations are valid
     if (!isLocationValid(curLoc) || !isLocationValid(targetLoc))
         return;
     
     int speed = AGENT_SPEED_H;
-    if (curBinId != -1 && curBin.capacity > 0)
+    if (curBinId != -1 && curBin->capacity > 0)
         speed = AGENT_SPEED_L;
     
     if (targetLoc.x == 0) { // Target location is the repo
@@ -132,10 +132,13 @@ void Agent::move(AppleBin curBin)
             }
         }
     }
+    
+    if (curBinId != -1)
+        curBin->loc = curLoc;
 }
 
 void Agent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::vector<AppleBin> &repo, 
-    std::vector<Agent> agents, Orchard env, std::vector<Coordinate> &newLocs)
+    std::vector<Agent> &agents, Orchard env, std::vector<Coordinate> &newLocs)
 {
     if (targetLoc.x == -1 || targetLoc.y == -1 || curLoc.x == 0) {
         /* Agent is idle or at repo (or target is not a valid location in orchard, in which case agent is corrupted) */
@@ -160,7 +163,7 @@ void Agent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::vector
                 targetLoc = newLoc;
                 newLocs.erase(newLocs.begin());
                 int cIdx = getBinIndexById(bins, curBinId);
-                move(bins[cIdx]);
+                move(&bins[cIdx]);
                 printf("A%d carries new bin to (%d,%d).\n", id, targetLoc.x, targetLoc.y);
             }
         } else {
@@ -180,7 +183,7 @@ void Agent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::vector
                 if (env.getApplesAt(targetLoc) > 0) // There are still apples in target location; need a new bin
                     bins.push_back(AppleBin((*binCounter)++, curLoc.x, curLoc.y));
                 int cIdx = getBinIndexById(bins, curBinId);
-                move(bins[cIdx]);
+                move(&bins[cIdx]);
                 printf("A%d moves to pick up B%d at (%d,%d).\n", id, targetBinId, targetLoc.x, targetLoc.y);
             }
         }
@@ -189,7 +192,7 @@ void Agent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::vector
         if (curBinId == targetBinId) { // Agent is carrying the target bin, go to repo (column 0 at every row)
             targetLoc = getRepoLocation();
             int cIdx = getBinIndexById(bins, curBinId);
-            move(bins[cIdx]);
+            move(&bins[cIdx]);
             printf("A%d moves to (%d,%d).\n", id, curLoc.x, curLoc.y);
         } else { // Agent is on the way to pick up the target bin; it may or may not be carrying an empty bin
             if (curLoc.x == targetLoc.x && curLoc.y == targetLoc.y) { // Arrived at target location
@@ -205,7 +208,7 @@ void Agent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::vector
                     printf("A%d picks up B%d.\n", id, curBinId);
                     targetLoc = getRepoLocation();
                     int cIdx = getBinIndexById(bins, curBinId);
-                    move(bins[cIdx]);
+                    move(&bins[cIdx]);
                     printf("A%d moves to (%d,%d).\n", id, curLoc.x, curLoc.y);
                 } else { // else, if agent has arrived at target location, but target bin is not full yet, agent waits
                     int cIdx = getBinIndexById(bins, curBinId);
@@ -213,7 +216,7 @@ void Agent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::vector
                 }
             } else {
                 int cIdx = getBinIndexById(bins, curBinId);
-                move(bins[cIdx]);
+                move(&bins[cIdx]);
                 printf("A%d moves to (%d,%d).\n", id, curLoc.x, curLoc.y);
             }
         }

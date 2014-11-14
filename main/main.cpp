@@ -89,8 +89,22 @@ Coordinate distributeWorkers(std::vector<Worker> &workers, std::vector<AppleBin>
     return newLoc;
 }
 
+void writeBinInfo(int time, AppleBin ab)
+{
+    char fname[50];
+    sprintf(fname, "logs/bins/bin%d.csv", ab.id);
+    FILE *fp = fopen(fname, "a");
+    fprintf(fp, "%d,%d,%d,%4.2f\n", time, ab.loc.x, ab.loc.y, ab.capacity);
+    fclose(fp);
+}
+
 void run()
 {
+    system("rm -r logs");
+    system("mkdir logs");
+    system("mkdir -p logs/agents");
+    system("mkdir -p logs/bins");
+    
     // Prepare log files
     FILE *repoFile = fopen("logs/repo.csv", "w");
     
@@ -124,6 +138,7 @@ void run()
     std::vector<AppleBin> bins;
     for (int i = 0; i < (int) binLocations.size(); ++i) {
         bins.push_back(AppleBin(binCounter++, binLocations[i].x, binLocations[i].y));
+        writeBinInfo(-1, bins[i]);
         printf("B%d at (%d,%d)\n", bins[i].id, bins[i].loc.x, bins[i].loc.y);
     }
     printf("----------\n");
@@ -132,8 +147,8 @@ void run()
     std::vector<Agent> agents;
     for (int i = 0; i < NUM_AGENTS; ++i) {
         agents.push_back(Agent(i, Coordinate(0, 0)));
-        char fname[20];
-        sprintf(fname, "logs/agent%d.csv", i);
+        char fname[50];
+        sprintf(fname, "logs/agents/agent%d.csv", i);
         FILE *fp = fopen(fname, "w");
         agentFiles.push_back(fp);
     }
@@ -159,7 +174,6 @@ void run()
             } else { // No more apples at current location
                 Coordinate tmp = distributeWorkers(workers, bins, bins[b].loc, env);
                 newLocs.push_back(tmp);
-                //printf("[%d], newLocs.size(): %d\n", t, (int) newLocs.size());
             }
         }
         
@@ -169,11 +183,19 @@ void run()
             Coordinate atmp = agents[a].getCurLoc();
             fprintf(agentFiles[a], "%d,%d,%d\n", t, atmp.x, atmp.y);
         }
+        
+        for (int b = 0; b < (int) bins.size(); ++b)
+            writeBinInfo(t, bins[b]);
+        
         fprintf(repoFile, "%d,%d\n", t, (int) repo.size());
         int locCount = 0;
         float totalApples = env.getTotalApples(&locCount);
         printf("Remaining apples: %4.2f at %d locations.\n", totalApples, locCount);
     }
+    
+    fclose(repoFile);
+    for (int a = 0; a < (int) agentFiles.size(); ++a)
+        fclose(agentFiles[a]);
 }
 
 int main(int argc, char **argv)
