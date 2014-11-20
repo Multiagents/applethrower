@@ -13,9 +13,8 @@ struct AppleBin
 {
     int id;
     float capacity;
-    float estCapacity;
     Coordinate loc;
-    float fillRate; // TODO: recalculate every time step?
+    float fillRate;
     AppleBin(int i, int x, int y) : id(i), loc(x, y) { capacity = 0; }
 };
 
