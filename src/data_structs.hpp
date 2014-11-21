@@ -15,7 +15,8 @@ struct AppleBin
     float capacity;
     Coordinate loc;
     float fillRate;
-    AppleBin(int i, int x, int y) : id(i), loc(x, y) { capacity = 0; }
+    bool onGround;
+    AppleBin(int i, int x, int y) : id(i), loc(x, y) { capacity = 0; onGround = false; }
 };
 
 struct Worker
