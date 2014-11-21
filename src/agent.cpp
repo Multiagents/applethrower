@@ -36,8 +36,12 @@ std::vector<int> Agent::getIdleBins(std::vector<AppleBin> bins, std::vector<Agen
     if (bins.size() == 0)
         return idleBins;
     
-    for (int b = 0; b < (int) bins.size(); ++b)
+    for (int b = 0; b < (int) bins.size(); ++b) {
+        if (bins[b].onGround)
             idleBins.push_back(b);
+        else
+            idleBins.push_back(-1);
+    }
     
     for (int a = 0; a < (int) agents.size(); ++a) {
         if (agents[a].id == id)
@@ -70,6 +74,9 @@ float Agent::getDistance(Coordinate loc1, Coordinate loc2)
 
 int Agent::getFirstEstFullBin(std::vector<int> indexes, std::vector<AppleBin> bins)
 {
+    if (indexes.size() == 1)
+        return indexes[0];
+    
     int maxBinIdx = -1;
     float maxEstCap = 0;
     
@@ -117,7 +124,8 @@ void Agent::move(AppleBin curBin)
         return;
     
     int speed = AGENT_SPEED_H;
-    if (curBinId != -1 && curBin.capacity > 0)
+    //if (curBinId != -1 && curBin.capacity > 0)
+    if (curBinId != -1)
         speed = AGENT_SPEED_L;
     
     if (targetLoc.x == 0) { // Target location is the repo
@@ -150,18 +158,20 @@ void Agent::move(AppleBin curBin)
 void Agent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::vector<AppleBin> &repo, 
     std::vector<Agent> &agents, Orchard env, std::vector<Coordinate> &newLocs)
 {
-    if (targetBinId == -1) { // Agent is idle
+    if (targetBinId == -1 && curBinId == -1) { // Agent is idle
         // Find an idle bin to be picked up
         std::vector<int> idleBins = getIdleBins(bins, agents);
         if (idleBins.size() > 0) { // There are idle bins
             printf("A%d(%d,%d) sees %d idle bins.\n", id, curLoc.x, curLoc.y, (int) idleBins.size());
             // Choose an existing bin to pick up
             int tmpIdx = getClosestFullBin(idleBins, bins);
+            //printf("A%d(%d,%d) closest full bin index: %d\n", id, curLoc.x, curLoc.y, tmpIdx);
             if (tmpIdx != -1) {
                 targetBinId = bins[tmpIdx].id;
                 targetLoc = bins[tmpIdx].loc;
             } else {
                 tmpIdx = getFirstEstFullBin(idleBins, bins);
+                //printf("A%d(%d,%d) closest first est. full bin index: %d\n", id, curLoc.x, curLoc.y, tmpIdx);
                 if (tmpIdx != -1) {
                     targetBinId = bins[tmpIdx].id;
                     targetLoc = bins[tmpIdx].loc;
@@ -169,13 +179,11 @@ void Agent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::vector
             }
             if (targetBinId != -1) {
                 int tIdx = getBinIndexById(bins, targetBinId);
-                float estTime = ceil(getDistance(curLoc, bins[tIdx].loc) / AGENT_SPEED_L);
-                float estApples = env.getEstApplesRemaining(bins[tIdx].loc, estTime, bins[tIdx].fillRate);
-                if (estApples > 0) { // There are still apples in target location; need a new bin
+                if (env.getApplesAt(bins[tIdx].loc) - BIN_CAPACITY > 0) {
                     curBinId = (*binCounter);
-                    printf("A%d takes a new bin B%d.\n", id, curBinId);
-                    bins.push_back(AppleBin(curBinId, curLoc.x, curLoc.y));
                     (*binCounter)++;
+                    printf("A%d takes a new bin B%d to (%d,%d).\n", id, curBinId, targetLoc.x, targetLoc.y);
+                    bins.push_back(AppleBin(curBinId, curLoc.x, curLoc.y));
                 }
                 int cIdx = getBinIndexById(bins, curBinId);
                 move(bins[cIdx]);
@@ -196,6 +204,7 @@ void Agent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::vector
             }
             if (!newLocFlag) { // No agent is targeting the new location
                 curBinId = (*binCounter);
+                (*binCounter)++;
                 bins.push_back(AppleBin(curBinId, curLoc.x, curLoc.y));
                 targetBinId = -1;
                 targetLoc = newLocs[0];
@@ -204,8 +213,10 @@ void Agent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::vector
                 move(bins[cIdx]);
                 if (cIdx != -1)
                     bins[cIdx].loc = curLoc;
-                printf("A%d(%d,%d) carries new bin to (%d,%d).\n", id, curLoc.x, curLoc.y, targetLoc.x, targetLoc.y);
+                printf("A%d(%d,%d) carries new bin B%d to (%d,%d).\n", id, curLoc.x, curLoc.y, bins[cIdx].id, targetLoc.x, targetLoc.y);
             }
+        } else {
+            printf("A%d(%d,%d) is idle.\n", id, curLoc.x, curLoc.y);
         }
     } else {
         /* Agent is not idle (i.e. moving towards a bin or waiting for a bin) */
@@ -217,44 +228,58 @@ void Agent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::vector
             move(bins[cIdx]);
             if (cIdx != -1)
                 bins[cIdx].loc = curLoc;
-            printf("A%d moves to (%d,%d). Destination: REPO.\n", id, curLoc.x, curLoc.y);
+            printf("A%d moves to (%d,%d). Target: (%d,%d). Destination: REPO.\n", id, curLoc.x, curLoc.y, targetLoc.x, targetLoc.y);
         } else { // Agent is on the way to pick up the target bin; it may or may not be carrying an empty bin
             if (curLoc.x == targetLoc.x && curLoc.y == targetLoc.y) { // Arrived at target location
-                printf("A%d arrives at target (%d,%d).\n", id, targetLoc.x, targetLoc.y);
-                int tIdx = getBinIndexById(bins, targetBinId);
-                float cap = bins[tIdx].capacity;
-                if (cap >= BIN_CAPACITY) { // Target bin is full
-                    if (curBinId != -1) { // Agent is carrying an empty bin
-                        int eIdx = getBinIndexById(bins, curBinId);
-                        bins[eIdx].loc = curLoc;
-                    }
-                    int cIdx = getBinIndexById(bins, curBinId);
-                    curBinId = targetBinId; // pick up target bin
-                    printf("A%d(%d,%d) picks up B%d(%d,%d).\n", id, curLoc.x, curLoc.y, curBinId, 
-                        bins[cIdx].loc.x, bins[cIdx].loc.y);
-                    targetLoc = getRepoLocation();
-                    move(bins[cIdx]);
-                    if (cIdx != -1)
-                        bins[cIdx].loc = curLoc;
-                    printf("A%d moves to (%d,%d). Target: B%d.\n", id, curLoc.x, curLoc.y, targetBinId);
-                } else { // else, if agent has arrived at target location, but target bin is not full yet, agent waits
+                printf("A%d arrives at target (%d,%d). CurBinId: %d\n", id, targetLoc.x, targetLoc.y, curBinId);
+                if (targetBinId == -1 && curBinId != -1) {
+                    int eIdx = getBinIndexById(bins, curBinId);
+                    bins[eIdx].loc = curLoc;
+                    bins[eIdx].onGround = true;
+                    printf("A%d(%d,%d) drops B%d at (%d,%d).\n", id, curLoc.x, curLoc.y, bins[eIdx].id, 
+                        bins[eIdx].loc.x, bins[eIdx].loc.y);
+                } else {
                     int tIdx = getBinIndexById(bins, targetBinId);
-                    printf("A%d(%d,%d) is waiting for B%d(%d,%d) to be filled.\n", id, curLoc.x, curLoc.y, targetBinId, 
-                        bins[tIdx].loc.x, bins[tIdx].loc.y);
+                    if (round(bins[tIdx].capacity) >= BIN_CAPACITY) { // Target bin is full
+                        if (curBinId != -1) { // Agent is carrying an empty bin
+                            int eIdx = getBinIndexById(bins, curBinId);
+                            bins[eIdx].loc = curLoc;
+                            bins[eIdx].onGround = true;
+                            printf("A%d(%d,%d) drops B%d at (%d,%d).\n", id, curLoc.x, curLoc.y, bins[eIdx].id, 
+                                bins[eIdx].loc.x, bins[eIdx].loc.y);
+                        }
+                        curBinId = targetBinId; // pick up target bin
+                        int cIdx = getBinIndexById(bins, curBinId);
+                        if (cIdx != -1) {
+                            bins[cIdx].capacity = round(bins[cIdx].capacity);
+                            bins[cIdx].loc = curLoc;
+                            bins[cIdx].onGround = false;
+                        }
+                        printf("A%d(%d,%d) picks up B%d(%d,%d).\n", id, curLoc.x, curLoc.y, curBinId, 
+                            bins[cIdx].loc.x, bins[cIdx].loc.y);
+                        targetLoc = getRepoLocation();
+                        move(bins[cIdx]);
+                        printf("A%d moves to (%d,%d). TargetBin: B%d.\n", id, curLoc.x, curLoc.y, targetBinId);
+                    } else { // else, if agent has arrived at target location, but target bin is not full yet, agent waits
+                        int tIdx = getBinIndexById(bins, targetBinId);
+                        printf("A%d(%d,%d) is waiting for B%d(%d,%d) to be filled.\n", id, curLoc.x, curLoc.y, bins[tIdx].id, //targetBinId, 
+                            bins[tIdx].loc.x, bins[tIdx].loc.y);
+                    }
                 }
             } else {
                 int cIdx = getBinIndexById(bins, curBinId);
                 move(bins[cIdx]);
                 if (cIdx != -1)
                     bins[cIdx].loc = curLoc;
-                printf("A%d moves to (%d,%d). Target: B%d.\n", id, curLoc.x, curLoc.y, targetBinId);
+                printf("A%d moves to (%d,%d). CurBin: B%d. Target: B%d.\n", id, curLoc.x, curLoc.y, curBinId, targetBinId);
             }
         }
     }
     
     if (curLoc.x == 0) {
         // Arrived at REPO
-        if (curBinId != -1 && bins[getBinIndexById(bins, curBinId)].capacity >= BIN_CAPACITY) { // Carrying a full bin
+        int carriedCapacity = round(bins[getBinIndexById(bins, curBinId)].capacity);
+        if (curBinId != -1 && carriedCapacity >= BIN_CAPACITY) { // Carrying a full bin
             int idx = getBinIndexById(bins, curBinId);
             if (idx >= 0 && idx < (int) bins.size()) {
                 repo.push_back(copyBin(bins[idx])); // Put carried bin in repo

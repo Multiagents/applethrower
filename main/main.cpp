@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <climits>
+#include <cmath>
 #include <ctime>
 #include <vector>
 #include "data_structs.hpp"
@@ -63,7 +64,7 @@ Coordinate findNewAppleLocation(std::vector<Worker> workers, Coordinate curLoc, 
     float maxRatio = 0;
     Coordinate maxLoc(-1, -1);
     for (int r = 0; r < ORCH_ROWS; ++r) {
-        for (int c = 0; c < ORCH_COLS; c++) {
+        for (int c = 1; c < ORCH_COLS - 1; c++) {
             Coordinate tmp(r, c);
             if (getNumWorkersAt(workers, tmp) == 0) {
                 return tmp;
@@ -148,11 +149,13 @@ void run()
     }
     
     /* Initialize bins with the locations of groups of people */
-    printf("Initial bin locations:\n");
     std::vector<AppleBin> bins;
-    for (int i = 0; i < (int) binLocations.size(); ++i) {
+    for (int i = 0; i < (int) binLocations.size(); ++i)
         bins.push_back(AppleBin(binCounter++, binLocations[i].x, binLocations[i].y));
-        printf("B%d at (%d,%d)\n", bins[i].id, bins[i].loc.x, bins[i].loc.y);
+    printf("Initial bin locations:\n");
+    for (int b = 0; b < (int) bins.size(); ++b) {
+        bins[b].onGround = true;
+        printf("B%d at (%d,%d)\n", bins[b].id, bins[b].loc.x, bins[b].loc.y);
     }
     printf("----------\n");
     
@@ -174,22 +177,34 @@ void run()
     std::vector<Coordinate> newLocs;
     for (int t = 0; t < TIME_LIMIT; ++t) {
         // Simulate bins and workers
+        // TODO Harvest only happens when there's bin on the location. Downside: workers will have to wait for bins.
         for (int b = 0; b < (int) bins.size(); ++b) {
             int num = getNumWorkersAt(workers, bins[b].loc);
-            bins[b].fillRate = num * PICK_RATE;
-            if (env.getApplesAt(bins[b].loc) > 0) {
+            int tmp1 = round(bins[b].capacity);
+            int tmp2 = BIN_CAPACITY;
+            if (env.getApplesAt(bins[b].loc) > 0 && tmp1 < tmp2 && bins[b].onGround) {
+                bins[b].fillRate = num * PICK_RATE;
                 bins[b].capacity += bins[b].fillRate; // capacity increase for each time step = fill rate * 1
                 env.decreaseApplesAt(bins[b].loc, bins[b].fillRate);
                 if (bins[b].capacity > BIN_CAPACITY)
                     bins[b].capacity = BIN_CAPACITY;
-                printf("[%d] B%d (%d,%d) capacity: %4.2f\n", t, bins[b].id, bins[b].loc.x, bins[b].loc.y, bins[b].capacity);
             }
+            printf("[%d] B%d (%d,%d) capacity: %4.2f. (# workers: %d)\n", t, bins[b].id, bins[b].loc.x, 
+                bins[b].loc.y, bins[b].capacity, num);
+            if (bins[b].onGround)
+                printf("[%d] Remaining apples at (%d,%d): %4.2f\n", t, bins[b].loc.x, bins[b].loc.y, 
+                    env.getApplesAt(bins[b].loc));
             
-            if (env.getApplesAt(bins[b].loc) <= 0) { // No more apples at current location
+            if (num > 0 && round(env.getApplesAt(bins[b].loc)) <= 0) { // No more apples at current location
                 Coordinate tmp = distributeWorkers(workers, bins, bins[b].loc, env);
                 registerNewLocation(tmp, newLocs, t);
+                printf("[%d] No more apples at (%d,%d). %d workers move to (%d,%d).\n", t, bins[b].loc.x, bins[b].loc.y, 
+                    num, tmp.x, tmp.y);
             }
         }
+        
+        for (int n = 0; n < (int) newLocs.size(); ++n)
+            printf("[%d] New location request: (%d,%d)\n", t, newLocs[n].x, newLocs[n].y);
         
         // Simulate agents
         for (int a = 0; a < NUM_AGENTS; ++a) {
@@ -215,7 +230,7 @@ void run()
 
 int main(int argc, char **argv)
 {
-    srand(time(NULL));
+    //srand(time(NULL));
     
     run();
     
