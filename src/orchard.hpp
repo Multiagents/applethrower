@@ -22,7 +22,9 @@ public:
     
     void decreaseApplesAt(Coordinate loc, float fillRate);
     
-    float getTotalApples(int *count);
+    double getTotalApples(int *count);
+    
+    float getEstApplesRemaining(Coordinate loc, float estTime, float fillRate);
 
 private:
     float appleDist[ORCH_ROWS][ORCH_COLS];

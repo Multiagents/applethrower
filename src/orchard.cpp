@@ -6,9 +6,14 @@
 Orchard::Orchard()
 {
     /* Initialize numbers of apples in each grid (uniform distribution). */
-    for (int i = 0; i < ORCH_ROWS; ++i)
-        for (int j = 0; j < ORCH_COLS; ++j)
-            appleDist[i][j] = (50 * BIN_CAPACITY) / ORCH_COLS;
+    for (int i = 0; i < ORCH_ROWS; ++i) {
+        for (int j = 0; j < ORCH_COLS; ++j) {
+            if (j == 0 || j == ORCH_COLS - 1)
+                appleDist[i][j] = 0;
+            else
+                appleDist[i][j] = NUM_APPLES_PER_LOC;
+        }
+    }
 }
 
 Orchard::~Orchard()
@@ -27,13 +32,13 @@ void Orchard::decreaseApplesAt(Coordinate loc, float fillRate)
 {
     if (loc.x < 0 || loc.x >= ORCH_COLS || loc.y < 0 || loc.y >= ORCH_ROWS)
         return;
-    appleDist[loc.y][loc.x] -= fillRate;
+    appleDist[loc.y][loc.x] = (fillRate >= appleDist[loc.y][loc.x]) ? 0 : appleDist[loc.y][loc.x] - fillRate;
 }
 
-float Orchard::getTotalApples(int *count)
+double Orchard::getTotalApples(int *count)
 {
     (*count) = 0;
-    float total = 0;
+    double total = 0;
     for (int i = 0; i < ORCH_ROWS; ++i) {
         for (int j = 0; j < ORCH_COLS; ++j) {
             total += appleDist[i][j];
@@ -42,6 +47,13 @@ float Orchard::getTotalApples(int *count)
         }
     }
     return total;
+}
+
+float Orchard::getEstApplesRemaining(Coordinate loc, float estTime, float fillRate)
+{
+    float amount = appleDist[loc.y][loc.x] - (estTime * fillRate);
+    amount = (amount >= 0) ? amount : 0;
+    return amount;
 }
 
 /*void Orchard::print()
