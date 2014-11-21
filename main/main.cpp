@@ -28,14 +28,14 @@ int getNumWorkersAt(std::vector<Worker> workers, Coordinate loc)
 Coordinate findNewAppleLocation(std::vector<Worker> workers, Coordinate curLoc, Orchard env)
 {
     // Search location at the same row, to the right columns
-    for (int c = curLoc.x + 1; c < ORCH_COLS; ++c) {
+    for (int c = curLoc.x + 1; c < ORCH_COLS - 1; ++c) {
         Coordinate tmp(c, curLoc.y);
         if (env.getApplesAt(tmp) > 0 && getNumWorkersAt(workers, tmp) == 0)
             return tmp;
     }
     
     // Search location at the same row, to the left columns
-    for (int c = curLoc.x - 1; c >= 0; --c) {
+    for (int c = curLoc.x - 1; c > 0; --c) {
         Coordinate tmp(c, curLoc.y);
         if (env.getApplesAt(tmp) > 0 && getNumWorkersAt(workers, tmp) == 0)
             return tmp;
@@ -43,16 +43,20 @@ Coordinate findNewAppleLocation(std::vector<Worker> workers, Coordinate curLoc, 
     
     // Search location at a different row (down)
     for (int r = curLoc.y + 1; r < ORCH_ROWS; ++r) {
-        Coordinate tmp(ORCH_COLS - 1, r); // Starts from the rightmost column
-        if (env.getApplesAt(tmp) > 0 && getNumWorkersAt(workers, tmp) == 0)
-            return tmp;
+        for (int c = ORCH_COLS - 2; c > 0; --c) {
+            Coordinate tmp(c, r); // Starts from the rightmost column
+            if (env.getApplesAt(tmp) > 0 && getNumWorkersAt(workers, tmp) == 0)
+                return tmp;
+        }
     }
     
     // Search location at a different row (up)
     for (int r = curLoc.y - 1; r >= 0; --r) {
-        Coordinate tmp(ORCH_COLS - 1, r); // Starts from the rightmost column
-        if (env.getApplesAt(tmp) > 0 && getNumWorkersAt(workers, tmp) == 0)
-            return tmp;
+        for (int c = ORCH_COLS - 2; c > 0; --c) {
+            Coordinate tmp(c, r); // Starts from the rightmost column
+            if (env.getApplesAt(tmp) > 0 && getNumWorkersAt(workers, tmp) == 0)
+                return tmp;
+        }
     }
     
     // Still can't find a good location, join another group with the max ratio between apples and workers
@@ -98,6 +102,16 @@ void writeBinInfo(int time, AppleBin ab)
     fclose(fp);
 }
 
+void registerNewLocation(Coordinate loc, std::vector<Coordinate> &newLocs, int time)
+{
+    for (int i = 0; i < (int) newLocs.size(); ++i) {
+        if (newLocs[i].x == loc.x && newLocs[i].y == loc.y)
+            return;
+    }
+    newLocs.push_back(loc);
+    printf("[%d] New location: (%d,%d).\n", time, loc.x, loc.y);
+}
+
 void run()
 {
     system("rm -r logs");
@@ -138,7 +152,6 @@ void run()
     std::vector<AppleBin> bins;
     for (int i = 0; i < (int) binLocations.size(); ++i) {
         bins.push_back(AppleBin(binCounter++, binLocations[i].x, binLocations[i].y));
-        writeBinInfo(-1, bins[i]);
         printf("B%d at (%d,%d)\n", bins[i].id, bins[i].loc.x, bins[i].loc.y);
     }
     printf("----------\n");
@@ -161,7 +174,6 @@ void run()
     std::vector<Coordinate> newLocs;
     for (int t = 0; t < TIME_LIMIT; ++t) {
         // Simulate bins and workers
-        Coordinate newLoc(-1, -1);
         for (int b = 0; b < (int) bins.size(); ++b) {
             int num = getNumWorkersAt(workers, bins[b].loc);
             bins[b].fillRate = num * PICK_RATE;
@@ -171,9 +183,11 @@ void run()
                 if (bins[b].capacity > BIN_CAPACITY)
                     bins[b].capacity = BIN_CAPACITY;
                 printf("[%d] B%d (%d,%d) capacity: %4.2f\n", t, bins[b].id, bins[b].loc.x, bins[b].loc.y, bins[b].capacity);
-            } else { // No more apples at current location
+            }
+            
+            if (env.getApplesAt(bins[b].loc) <= 0) { // No more apples at current location
                 Coordinate tmp = distributeWorkers(workers, bins, bins[b].loc, env);
-                newLocs.push_back(tmp);
+                registerNewLocation(tmp, newLocs, t);
             }
         }
         
@@ -190,12 +204,13 @@ void run()
         fprintf(repoFile, "%d,%d\n", t, (int) repo.size());
         int locCount = 0;
         float totalApples = env.getTotalApples(&locCount);
-        printf("Remaining apples: %4.2f at %d locations.\n", totalApples, locCount);
+        printf("[%d] Remaining apples: %4.2f at %d locations.\n", t, totalApples, locCount);
     }
+    printf("END\n");
     
-    fclose(repoFile);
+    /*fclose(repoFile);
     for (int a = 0; a < (int) agentFiles.size(); ++a)
-        fclose(agentFiles[a]);
+        fclose(agentFiles[a]);*/
 }
 
 int main(int argc, char **argv)
