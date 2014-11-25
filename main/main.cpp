@@ -10,7 +10,7 @@
 #include "orchard.hpp"
 #include "agent.hpp"
 
-const int TIME_LIMIT = 500;
+const int TIME_LIMIT = 50;
 
 FILE *logFile;
 FILE *repoFile;
@@ -110,7 +110,7 @@ void registerNewLocation(Coordinate loc, std::vector<Coordinate> &newLocs, int t
             return;
     }
     newLocs.push_back(loc);
-    printf("[%d] New location: (%d,%d).\n", time, loc.x, loc.y);
+    //printf("[%d] New location: (%d,%d).\n", time, loc.x, loc.y);
 }
 
 void run()
@@ -133,18 +133,20 @@ void run()
     /* Initialize groups of workers */
     std::vector<Coordinate> binLocations;
     int count = 0;
-    while (count < NUM_WORKERS) {
+    while (count < 2) {//NUM_WORKERS) {
         // Get random coordinate
-        int x = rand() % (ORCH_COLS - 1) + 1;
-        int y = rand() % ORCH_ROWS;
+        int x = 3 + count;//rand() % (ORCH_COLS - 1) + 1;
+        int y = 2 + count;//rand() % ORCH_ROWS;
         // Get random number of workers for a group
-        int num = rand() % 5 + 1;
+        int num = 5;//rand() % 5 + 1;
         // Register workers' locations
-        for (int n = 0; n < num && count < NUM_WORKERS; ++n) {
-            workers[count].loc.x = x;
-            workers[count].loc.y = y;
-            ++count;
+        for (int n = num * count; n < num * (count + 1); ++n) {
+            workers[n].loc.x = x;
+            workers[n].loc.y = y;
+            //++count;
+            printf("workers %d at location (%d, %d).\n", n, x, y);
         }
+        ++count;
         binLocations.push_back(Coordinate(x, y));
     }
     
@@ -177,7 +179,7 @@ void run()
     std::vector<Coordinate> newLocs;
     for (int t = 0; t < TIME_LIMIT; ++t) {
         // Simulate bins and workers
-        // TODO Harvest only happens when there's bin on the location. Downside: workers will have to wait for bins.
+        // Harvest only happens when there's bin on the location. Downside: workers will have to wait for bins.
         for (int b = 0; b < (int) bins.size(); ++b) {
             int num = getNumWorkersAt(workers, bins[b].loc);
             int tmp1 = round(bins[b].capacity);
@@ -191,15 +193,18 @@ void run()
             }
             printf("[%d] B%d (%d,%d) capacity: %4.2f. (# workers: %d)\n", t, bins[b].id, bins[b].loc.x, 
                 bins[b].loc.y, bins[b].capacity, num);
-            if (bins[b].onGround)
+            if (bins[b].onGround) {
                 printf("[%d] Remaining apples at (%d,%d): %4.2f\n", t, bins[b].loc.x, bins[b].loc.y, 
                     env.getApplesAt(bins[b].loc));
+            }
             
             if (num > 0 && round(env.getApplesAt(bins[b].loc)) <= 0) { // No more apples at current location
                 Coordinate tmp = distributeWorkers(workers, bins, bins[b].loc, env);
                 registerNewLocation(tmp, newLocs, t);
                 printf("[%d] No more apples at (%d,%d). %d workers move to (%d,%d).\n", t, bins[b].loc.x, bins[b].loc.y, 
                     num, tmp.x, tmp.y);
+            } else if (num > 0 && env.getApplesAt(bins[b].loc) > 0 && round(bins[b].capacity) >= BIN_CAPACITY) {
+                registerNewLocation(bins[b].loc, newLocs, t);
             }
         }
         
@@ -217,15 +222,12 @@ void run()
             writeBinInfo(t, bins[b]);
         
         fprintf(repoFile, "%d,%d\n", t, (int) repo.size());
-        int locCount = 0;
-        float totalApples = env.getTotalApples(&locCount);
-        printf("[%d] Remaining apples: %4.2f at %d locations.\n", t, totalApples, locCount);
+        //int locCount = 0;
+        //float totalApples = env.getTotalApples(&locCount);
+        //printf("[%d] Remaining apples: %4.2f at %d locations.\n", t, totalApples, locCount);
+        printf("------End of T = %d------\n", t);
     }
-    printf("END\n");
-    
-    /*fclose(repoFile);
-    for (int a = 0; a < (int) agentFiles.size(); ++a)
-        fclose(agentFiles[a]);*/
+    printf("END OF SIMULATION\n");
 }
 
 int main(int argc, char **argv)
