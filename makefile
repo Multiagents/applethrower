@@ -1,5 +1,5 @@
-CC = clang
-CXX = clang++
+CC = gcc
+CXX = g++
 
 # Compiler options, includes, library links
 INCLUDE = -Isrc
