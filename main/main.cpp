@@ -121,47 +121,68 @@ void registerNewLocation(Coordinate loc, std::vector<Coordinate> &newLocs, int t
     newLocs.push_back(loc);
 }
 
-void runBase(const int NUM_AGENTS)
+std::vector<Worker> initWorkers()
 {
-    system("rm -r logs");
-    system("mkdir logs");
-    system("mkdir -p logs/agents");
-    system("mkdir -p logs/bins");
-    
-    // Prepare log files
-    FILE *repoFile = fopen("logs/repo.csv", "w");
-    
-    int binCounter = 0;
-    
-    /* Initialize individual workers */
     std::vector<Worker> workers;
     for (int i = 0; i < NUM_WORKERS; ++i)
         workers.push_back(Worker(i, 0, 0));
-    
-    /* Initialize groups of workers */
-    std::vector<Coordinate> binLocations;
+    return workers;
+}
+
+std::vector<Coordinate> initWorkerGroupsRandom(std::vector<Worker> &workers)
+{
+    std::vector<Coordinate> workerGroups;
     int count = 0;
-    while (count < 2) {//NUM_WORKERS) {
+    
+    while (count < NUM_WORKERS) {
         // Get random coordinate
-        int x = 3 + count;//rand() % (ORCH_COLS - 1) + 1;
-        int y = 2 + count;//rand() % ORCH_ROWS;
+        int x = rand() % (ORCH_COLS - 1) + 1;
+        int y = rand() % ORCH_ROWS;
         // Get random number of workers for a group
-        int num = 5;//rand() % 5 + 1;
+        int num = rand() % 5 + 1;
+        // Register workers' locations
+        int prevCount = count;
+        for (int n = prevCount; n < (prevCount + num) && n < NUM_WORKERS; ++n) {
+            workers[n].loc.x = x;
+            workers[n].loc.y = y;
+            ++count;
+            printf("workers %d at location (%d, %d).\n", n, x, y);
+        }
+        workerGroups.push_back(Coordinate(x, y));
+    }
+    
+    return workerGroups;
+}
+
+std::vector<Coordinate> initWorkerGroupsFixed(std::vector<Worker> &workers)
+{
+    std::vector<Coordinate> workerGroups;
+    int count = 0;
+    
+    while (count < 2) {
+        int x = 3 + count;
+        int y = 2 + count;
+        int num = 5;
         // Register workers' locations
         for (int n = num * count; n < num * (count + 1); ++n) {
             workers[n].loc.x = x;
             workers[n].loc.y = y;
-            //++count;
             printf("workers %d at location (%d, %d).\n", n, x, y);
         }
         ++count;
-        binLocations.push_back(Coordinate(x, y));
+        workerGroups.push_back(Coordinate(x, y));
     }
     
-    /* Initialize bins with the locations of groups of people */
+    return workerGroups;
+}
+
+std::vector<AppleBin> initBins(std::vector<Coordinate> workerGroups, int *binCounter)
+{
     std::vector<AppleBin> bins;
-    for (int i = 0; i < (int) binLocations.size(); ++i)
-        bins.push_back(AppleBin(binCounter++, binLocations[i].x, binLocations[i].y));
+    
+    for (int i = 0; i < (int) workerGroups.size(); ++i)
+        bins.push_back(AppleBin((*binCounter)++, workerGroups[i].x, workerGroups[i].y));
+    
     printf("Initial bin locations:\n");
     for (int b = 0; b < (int) bins.size(); ++b) {
         bins[b].onGround = true;
@@ -169,12 +190,36 @@ void runBase(const int NUM_AGENTS)
     }
     printf("----------\n");
     
+    return bins;
+}
+
+void runBase(const int NUM_AGENTS)
+{
+    system("rm -r logs/base");
+    system("mkdir logs/base");
+    system("mkdir -p logs/base/agents");
+    system("mkdir -p logs/base/bins");
+    
+    // Prepare log files
+    FILE *repoFile = fopen("logs/base/repo.csv", "w");
+    
+    int binCounter = 0;
+    
+    /* Initialize individual workers */
+    std::vector<Worker> workers = initWorkers();
+    
+    /* Initialize groups of workers */
+    std::vector<Coordinate> workerGroups = initWorkerGroupsFixed(workers);
+    
+    /* Initialize bins with the locations of groups of people */
+    std::vector<AppleBin> bins = initBins(workerGroups, &binCounter);
+    
     /* Initialize agents */
     std::vector<Agent> agents;
     for (int i = 0; i < NUM_AGENTS; ++i) {
         agents.push_back(Agent(i, Coordinate(0, 0)));
         char fname[50];
-        sprintf(fname, "logs/agents/agent%d.csv", i);
+        sprintf(fname, "logs/base/agents/agent%d.csv", i);
         FILE *fp = fopen(fname, "w");
         agentFiles.push_back(fp);
     }
@@ -240,12 +285,92 @@ void runBase(const int NUM_AGENTS)
 
 void runRL(const int NUM_AGENTS, const int NUM_LAYERS)
 {
-    //
+    system("rm -r logs/rl");
+    system("mkdir logs/rl");
+    system("mkdir -p logs/rl/agents");
+    system("mkdir -p logs/rl/bins");
+    
+    // Prepare log files
+    FILE *repoFile = fopen("logs/rl/repo.csv", "w");
+    
+    int binCounter = 0;
+    std::vector<Worker> workers = initWorkers();
+    std::vector<Coordinate> workerGroups = initWorkerGroupsFixed(workers);
+    std::vector<AppleBin> bins = initBins(workerGroups, &binCounter);
+    
+    /* Initialize agents */
+    std::vector<AgentRL> agents;
+    for (int i = 0; i < NUM_AGENTS; ++i) {
+        agents.push_back(AgentRL(i, Coordinate(0, 0), NUM_LAYERS));
+        char fname[50];
+        sprintf(fname, "logs/rl/agents/agent%d.csv", i);
+        FILE *fp = fopen(fname, "w");
+        agentFiles.push_back(fp);
+    }
+    
+    /* Initialize orchard environment with uniform distribution of apples */
+    Orchard env;
+    std::vector<AppleBin> repo;
+    
+    /* Run simulator */
+    std::vector<Coordinate> newLocs;
+    for (int t = 0; t < TIME_LIMIT; ++t) {
+        printf("------------ T = %d ------------\n", t);
+        // Simulate bins and workers
+        for (int b = 0; b < (int) bins.size(); ++b) {
+            int num = getNumWorkersAt(workers, bins[b].loc);
+            int tmp1 = round(bins[b].capacity);
+            int tmp2 = BIN_CAPACITY;
+            if (env.getApplesAt(bins[b].loc) > 0 && tmp1 < tmp2 && bins[b].onGround) {
+                bins[b].fillRate = num * PICK_RATE;
+                bins[b].capacity += bins[b].fillRate; // capacity increase for each time step = fill rate * 1
+                env.decreaseApplesAt(bins[b].loc, bins[b].fillRate);
+                if (bins[b].capacity > BIN_CAPACITY)
+                    bins[b].capacity = BIN_CAPACITY;
+            }
+            printf("[%d] B%d (%d,%d) capacity: %4.2f. (# workers: %d)\n", t, bins[b].id, bins[b].loc.x, 
+                bins[b].loc.y, bins[b].capacity, num);
+            if (bins[b].onGround) {
+                printf("[%d] Remaining apples at (%d,%d): %4.2f\n", t, bins[b].loc.x, bins[b].loc.y, 
+                    env.getApplesAt(bins[b].loc));
+            }
+            
+            if (num > 0 && round(env.getApplesAt(bins[b].loc)) <= 0) { // No more apples at current location
+                Coordinate tmp = distributeWorkers(workers, bins, bins[b].loc, env);
+                registerNewLocation(tmp, newLocs, t);
+                printf("[%d] No more apples at (%d,%d). %d workers move to (%d,%d).\n", t, bins[b].loc.x, bins[b].loc.y, 
+                    num, tmp.x, tmp.y);
+            } else if (num > 0 && env.getApplesAt(bins[b].loc) > 0 && round(bins[b].capacity) >= BIN_CAPACITY) {
+                registerNewLocation(bins[b].loc, newLocs, t);
+            }
+        }
+        
+        for (int n = 0; n < (int) newLocs.size(); ++n)
+            printf("[%d] New location request: (%d,%d)\n", t, newLocs[n].x, newLocs[n].y);
+        
+        // Simulate agents
+        for (int a = 0; a < NUM_AGENTS; ++a)
+            agents[a].makePlans(agents, bins, env); // Each agent create plans
+        
+        for (int a = 0; a < NUM_AGENTS; ++a) {
+            // Auction to determine which agent picks up which bin
+        }
+        
+        for (int a = 0; a < NUM_AGENTS; ++a) {
+            Coordinate atmp = agents[a].getCurLoc();
+            fprintf(agentFiles[a], "%d,%d,%d\n", t, atmp.x, atmp.y);
+        }
+        
+        for (int b = 0; b < (int) bins.size(); ++b)
+            writeBinInfo(t, bins[b]);
+        
+        fprintf(repoFile, "%d,%d\n", t, (int) repo.size());
+    }
 }
 
 int main(int argc, char **argv)
 {
-    //srand(time(NULL));
+    srand(time(NULL));
     
     if (strcmp(argv[1], "-base") == 0) {
         int numAgents = DEFAULT_NUM_AGENTS;
