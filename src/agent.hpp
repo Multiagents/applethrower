@@ -24,6 +24,8 @@ public:
     
     int getBinIndexById(std::vector<AppleBin> bins, int id);
     
+    std::vector<int> getIdleBins(std::vector<AppleBin> bins, std::vector<Agent> agents);
+    
     void takeAction(int *binCounter, std::vector<AppleBin> &bins, std::vector<AppleBin> &repo, 
         std::vector<Agent> &agents, Orchard env, std::vector<Coordinate> &newLocs);
     
@@ -35,8 +37,6 @@ private:
     Coordinate targetLoc;
     int curBinId;
     int targetBinId;
-    
-    std::vector<int> getIdleBins(std::vector<AppleBin> bins, std::vector<Agent> agents);
     
     int getClosestFullBin(std::vector<int> indexes, std::vector<AppleBin> bins);
     

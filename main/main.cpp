@@ -4,17 +4,26 @@
 #include <climits>
 #include <cmath>
 #include <ctime>
+#include <cstring>
 #include <vector>
 #include "data_structs.hpp"
 #include "params.hpp"
 #include "orchard.hpp"
 #include "agent.hpp"
+#include "agent_rl.hpp"
 
 const int TIME_LIMIT = 50;
 
 FILE *logFile;
 FILE *repoFile;
 std::vector<FILE*> agentFiles;
+
+int parseArgInt(char *arg)
+{
+    char *tmp = strtok(arg, "=");
+    tmp = strtok(NULL, "=");
+    return atoi(tmp);
+}
 
 int getNumWorkersAt(std::vector<Worker> workers, Coordinate loc)
 {
@@ -110,10 +119,9 @@ void registerNewLocation(Coordinate loc, std::vector<Coordinate> &newLocs, int t
             return;
     }
     newLocs.push_back(loc);
-    //printf("[%d] New location: (%d,%d).\n", time, loc.x, loc.y);
 }
 
-void run()
+void runBase(const int NUM_AGENTS)
 {
     system("rm -r logs");
     system("mkdir logs");
@@ -230,11 +238,32 @@ void run()
     printf("END OF SIMULATION\n");
 }
 
+void runRL(const int NUM_AGENTS, const int NUM_LAYERS)
+{
+    //
+}
+
 int main(int argc, char **argv)
 {
     //srand(time(NULL));
     
-    run();
+    if (strcmp(argv[1], "-base") == 0) {
+        int numAgents = DEFAULT_NUM_AGENTS;
+        if (argc >= 3)
+            numAgents = parseArgInt(argv[2]);
+        runBase(numAgents);
+    } else if (strcmp(argv[1], "-rl") == 0) {
+        int numAgents = DEFAULT_NUM_AGENTS;
+        int numLayers = DEFAULT_NUM_LAYERS;
+        if (argc >= 3)
+            numAgents = parseArgInt(argv[2]);
+        if (argc >= 4)
+            numLayers = parseArgInt(argv[3]);
+        runRL(numAgents, numLayers);
+    }
     
     return 0;
 }
+
+
+
