@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
@@ -123,6 +124,11 @@ float AgentRL::calcPathValues(int binPath[], std::vector<AppleBin> bins, Orchard
     return sum;
 }
 
+bool planComparator(Plan p1, Plan p2)
+{
+    return p1.binValue < p2.binValue;
+}
+
 void AgentRL::makePlans(std::vector<AgentRL> agents, std::vector<AppleBin> bins, std::vector<Coordinate> newLocs, 
     Orchard env)
 {
@@ -147,6 +153,7 @@ void AgentRL::makePlans(std::vector<AgentRL> agents, std::vector<AppleBin> bins,
     
     for (int i = 0; i < numIdleBins; ++i)
         plans.push_back(Plan(binPaths[i][0], calcPathValues(binPaths[i], bins, env)));
+    std::sort(plans.begin(), plans.end(), planComparator);
 }
 
 
