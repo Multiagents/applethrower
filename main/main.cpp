@@ -316,8 +316,9 @@ void runRL(const int NUM_AGENTS, const int NUM_LAYERS, const int TIME_LIMIT)
                 if (bins[b].capacity > BIN_CAPACITY)
                     bins[b].capacity = BIN_CAPACITY;
             }
-            printf("[%d] B%d (%d,%d) capacity: %4.2f. (# workers: %d)\n", t, bins[b].id, bins[b].loc.x, 
-                bins[b].loc.y, bins[b].capacity, num);
+            const char *str = (bins[b].onGround) ? "on ground" : "carried";
+            printf("[%d] B%d (%d,%d) %s, capacity: %4.2f. (# workers: %d)\n", t, bins[b].id, bins[b].loc.x, 
+                bins[b].loc.y, str, bins[b].capacity, num);
             if (bins[b].onGround) {
                 printf("[%d] Remaining apples at (%d,%d): %4.2f\n", t, bins[b].loc.x, bins[b].loc.y, 
                     env.getApplesAt(bins[b].loc));
@@ -342,7 +343,7 @@ void runRL(const int NUM_AGENTS, const int NUM_LAYERS, const int TIME_LIMIT)
         
         for (int a = 0; a < NUM_AGENTS; ++a) {
             agents[a].selectPlan(agents, bins); // Each agent selects a plan by negotiating conflict with other agents
-            agents[a].takeAction(&binCounter, bins, locRequests, repo, env);
+            agents[a].takeAction(&binCounter, bins, locRequests, agents, repo, env);
         }
         
         for (int a = 0; a < NUM_AGENTS; ++a) {

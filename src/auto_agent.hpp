@@ -59,14 +59,16 @@ public:
     
     void removeLocationRequest(Coordinate loc, std::vector<Coordinate> &locRequests);
     
-    Coordinate selectClosestLocationRequest(Coordinate loc, std::vector<Coordinate> locRequests);
+    Coordinate selectClosestLocationRequest(Coordinate loc, std::vector<Coordinate> locRequests, 
+        std::vector<AutoAgent> agents);
     
-    Coordinate selectLocationRequest(std::vector<Coordinate> locRequests, AppleBin ab, int *stateIndex);
+    Coordinate selectLocationRequest(std::vector<Coordinate> locRequests, AppleBin ab, std::vector<AutoAgent> agents, 
+        int *stateIndex);
     
     void move(Coordinate loc, std::vector<AppleBin> &bins, int index);
     
     void takeAction(int *binCounter, std::vector<AppleBin> &bins, std::vector<Coordinate> &locRequests, 
-        std::vector<AppleBin> &repo, Orchard env);
+        std::vector<AutoAgent> &agents, std::vector<AppleBin> &repo, Orchard env);
     
 private:
     int id;
@@ -84,6 +86,8 @@ private:
     void removePlan(int binId);
     
     bool areSameStates(AutoState s1, AutoState s2);
+    
+    bool isLocationServed(Coordinate loc, std::vector<AutoAgent> agents);
     
     bool isLocationValid(Coordinate l);
     
