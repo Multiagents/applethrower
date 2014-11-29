@@ -12,8 +12,6 @@
 #include "agent.hpp"
 #include "auto_agent.hpp"
 
-const int TIME_LIMIT = 10;
-
 FILE *logFile;
 FILE *repoFile;
 std::vector<FILE*> agentFiles;
@@ -192,7 +190,7 @@ std::vector<AppleBin> initBins(std::vector<Coordinate> workerGroups, int *binCou
     return bins;
 }
 
-void runBase(const int NUM_AGENTS)
+void runBase(const int NUM_AGENTS, const int TIME_LIMIT)
 {
     system("rm -rf logs/base");
     system("mkdir logs/base");
@@ -273,7 +271,7 @@ void runBase(const int NUM_AGENTS)
     printf("END OF SIMULATION\n");
 }
 
-void runRL(const int NUM_AGENTS, const int NUM_LAYERS)
+void runRL(const int NUM_AGENTS, const int NUM_LAYERS, const int TIME_LIMIT)
 {
     system("rm -rf logs/auto");
     system("mkdir logs/auto");
@@ -363,22 +361,28 @@ int main(int argc, char **argv)
 {
     srand(time(NULL));
     
+    int timeLimit = 10; // Default time limit
+    int numAgents = DEFAULT_NUM_AGENTS;
+    
     if (strcmp(argv[1], "-base") == 0) {
-        int numAgents = DEFAULT_NUM_AGENTS;
-        if (argc >= 3)
-            numAgents = parseArgInt(argv[2]);
-        
-        runBase(numAgents);
+        for (int i = 2; i < argc; ++i) {
+            if (argv[i][1] == 'a')
+                numAgents = parseArgInt(argv[i]);
+            else if (argv[i][1] == 't')
+                timeLimit = parseArgInt(argv[i]);
+        }
+        runBase(numAgents, timeLimit);
     } else if (strcmp(argv[1], "-auto") == 0) {
-        int numAgents = DEFAULT_NUM_AGENTS;
         int numLayers = DEFAULT_NUM_LAYERS;
-        
-        if (argc >= 3)
-            numAgents = parseArgInt(argv[2]);
-        if (argc >= 4)
-            numLayers = parseArgInt(argv[3]);
-        
-        runRL(numAgents, numLayers);
+        for (int i = 2; i < argc; ++i) {
+            if (argv[i][1] == 'a')
+                numAgents = parseArgInt(argv[i]);
+            else if (argv[i][1] == 'l')
+                numLayers = parseArgInt(argv[i]);
+            else if (argv[i][1] == 't')
+                timeLimit = parseArgInt(argv[i]);
+        }
+        runRL(numAgents, numLayers, timeLimit);
     }
     
     return 0;

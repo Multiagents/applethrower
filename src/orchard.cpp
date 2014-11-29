@@ -56,33 +56,5 @@ float Orchard::getEstApplesRemaining(Coordinate loc, float estTime, float fillRa
     return amount;
 }
 
-/*void Orchard::print()
-{
-    for (int i = 0; i < ORCH_ROWS; ++i) {
-        for (int j = 0; j < ORCH_COLS; ++j) {
-            if (i == ORCH_COLS - 1)
-                printf("%4.2f\n", appleDist[i][j]);
-            else
-                printf("%4.2f,", appleDist[i][j]);
-        }
-    }
-}
-
-std::string Orchard::toString()
-{
-    std::string str;
-    for (int i = 0; i < ORCH_ROWS; ++i) {
-        for (int j = 0; j < ORCH_COLS; ++j) {
-            char buf[20];
-            if (i == ORCH_COLS - 1)
-                sprintf(buf, "%4.2f\n", appleDist[i][j]);
-            else
-                sprintf(buf, "%4.2f,", appleDist[i][j]);
-            str += buf;
-        }
-    }
-    return str;
-}*/
-
 
 
