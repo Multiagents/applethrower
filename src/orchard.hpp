@@ -14,10 +14,6 @@ public:
     
     ~Orchard();
     
-    void print();
-    
-    std::string toString();
-    
     float getApplesAt(Coordinate loc);
     
     void decreaseApplesAt(Coordinate loc, float fillRate);
