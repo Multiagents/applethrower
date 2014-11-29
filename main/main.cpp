@@ -10,9 +10,9 @@
 #include "params.hpp"
 #include "orchard.hpp"
 #include "agent.hpp"
-#include "agent_rl.hpp"
+#include "auto_agent.hpp"
 
-const int TIME_LIMIT = 50;
+const int TIME_LIMIT = 10;
 
 FILE *logFile;
 FILE *repoFile;
@@ -103,22 +103,22 @@ Coordinate distributeWorkers(std::vector<Worker> &workers, std::vector<AppleBin>
     return newLoc;
 }
 
-void writeBinInfo(int time, AppleBin ab)
+void writeBinInfo(const char *subdir, int time, AppleBin ab)
 {
     char fname[50];
-    sprintf(fname, "logs/bins/bin%d.csv", ab.id);
+    sprintf(fname, "logs/%s/bins/bin%d.csv", subdir, ab.id);
     FILE *fp = fopen(fname, "a");
     fprintf(fp, "%d,%d,%d,%4.2f\n", time, ab.loc.x, ab.loc.y, ab.capacity);
     fclose(fp);
 }
 
-void registerNewLocation(Coordinate loc, std::vector<Coordinate> &newLocs, int time)
+void registerLocation(Coordinate loc, std::vector<Coordinate> &locRequests, int time)
 {
-    for (int i = 0; i < (int) newLocs.size(); ++i) {
-        if (newLocs[i].x == loc.x && newLocs[i].y == loc.y)
+    for (int i = 0; i < (int) locRequests.size(); ++i) {
+        if (locRequests[i].x == loc.x && locRequests[i].y == loc.y)
             return;
     }
-    newLocs.push_back(loc);
+    locRequests.push_back(loc);
 }
 
 std::vector<Worker> initWorkers()
@@ -146,7 +146,7 @@ std::vector<Coordinate> initWorkerGroupsRandom(std::vector<Worker> &workers)
             workers[n].loc.x = x;
             workers[n].loc.y = y;
             ++count;
-            printf("workers %d at location (%d, %d).\n", n, x, y);
+            //printf("workers %d at location (%d, %d).\n", n, x, y);
         }
         workerGroups.push_back(Coordinate(x, y));
     }
@@ -167,7 +167,7 @@ std::vector<Coordinate> initWorkerGroupsFixed(std::vector<Worker> &workers)
         for (int n = num * count; n < num * (count + 1); ++n) {
             workers[n].loc.x = x;
             workers[n].loc.y = y;
-            printf("workers %d at location (%d, %d).\n", n, x, y);
+            //printf("workers %d at location (%d, %d).\n", n, x, y);
         }
         ++count;
         workerGroups.push_back(Coordinate(x, y));
@@ -188,14 +188,13 @@ std::vector<AppleBin> initBins(std::vector<Coordinate> workerGroups, int *binCou
         bins[b].onGround = true;
         printf("B%d at (%d,%d)\n", bins[b].id, bins[b].loc.x, bins[b].loc.y);
     }
-    printf("----------\n");
     
     return bins;
 }
 
 void runBase(const int NUM_AGENTS)
 {
-    system("rm -r logs/base");
+    system("rm -rf logs/base");
     system("mkdir logs/base");
     system("mkdir -p logs/base/agents");
     system("mkdir -p logs/base/bins");
@@ -204,17 +203,10 @@ void runBase(const int NUM_AGENTS)
     FILE *repoFile = fopen("logs/base/repo.csv", "w");
     
     int binCounter = 0;
-    
-    /* Initialize individual workers */
     std::vector<Worker> workers = initWorkers();
-    
-    /* Initialize groups of workers */
     std::vector<Coordinate> workerGroups = initWorkerGroupsFixed(workers);
-    
-    /* Initialize bins with the locations of groups of people */
     std::vector<AppleBin> bins = initBins(workerGroups, &binCounter);
     
-    /* Initialize agents */
     std::vector<Agent> agents;
     for (int i = 0; i < NUM_AGENTS; ++i) {
         agents.push_back(Agent(i, Coordinate(0, 0)));
@@ -227,9 +219,10 @@ void runBase(const int NUM_AGENTS)
     /* Initialize orchard environment with uniform distribution of apples */
     Orchard env;
     std::vector<AppleBin> repo;
+    std::vector<Coordinate> locRequests;
     
     /* Run simulator */
-    std::vector<Coordinate> newLocs;
+    printf("START OF SIMULATION\n");
     for (int t = 0; t < TIME_LIMIT; ++t) {
         // Simulate bins and workers
         // Harvest only happens when there's bin on the location. Downside: workers will have to wait for bins.
@@ -253,31 +246,28 @@ void runBase(const int NUM_AGENTS)
             
             if (num > 0 && round(env.getApplesAt(bins[b].loc)) <= 0) { // No more apples at current location
                 Coordinate tmp = distributeWorkers(workers, bins, bins[b].loc, env);
-                registerNewLocation(tmp, newLocs, t);
+                registerLocation(tmp, locRequests, t);
                 printf("[%d] No more apples at (%d,%d). %d workers move to (%d,%d).\n", t, bins[b].loc.x, bins[b].loc.y, 
                     num, tmp.x, tmp.y);
             } else if (num > 0 && env.getApplesAt(bins[b].loc) > 0 && round(bins[b].capacity) >= BIN_CAPACITY) {
-                registerNewLocation(bins[b].loc, newLocs, t);
+                registerLocation(bins[b].loc, locRequests, t);
             }
         }
         
-        for (int n = 0; n < (int) newLocs.size(); ++n)
-            printf("[%d] New location request: (%d,%d)\n", t, newLocs[n].x, newLocs[n].y);
+        for (int n = 0; n < (int) locRequests.size(); ++n)
+            printf("[%d] New location request: (%d,%d)\n", t, locRequests[n].x, locRequests[n].y);
         
         // Simulate agents
         for (int a = 0; a < NUM_AGENTS; ++a) {
-            agents[a].takeAction(&binCounter, bins, repo, agents, env, newLocs);
+            agents[a].takeAction(&binCounter, bins, repo, agents, env, locRequests);
             Coordinate atmp = agents[a].getCurLoc();
             fprintf(agentFiles[a], "%d,%d,%d\n", t, atmp.x, atmp.y);
         }
         
         for (int b = 0; b < (int) bins.size(); ++b)
-            writeBinInfo(t, bins[b]);
+            writeBinInfo("base", t, bins[b]);
         
         fprintf(repoFile, "%d,%d\n", t, (int) repo.size());
-        //int locCount = 0;
-        //float totalApples = env.getTotalApples(&locCount);
-        //printf("[%d] Remaining apples: %4.2f at %d locations.\n", t, totalApples, locCount);
         printf("------End of T = %d------\n", t);
     }
     printf("END OF SIMULATION\n");
@@ -285,13 +275,13 @@ void runBase(const int NUM_AGENTS)
 
 void runRL(const int NUM_AGENTS, const int NUM_LAYERS)
 {
-    system("rm -r logs/rl");
-    system("mkdir logs/rl");
-    system("mkdir -p logs/rl/agents");
-    system("mkdir -p logs/rl/bins");
+    system("rm -rf logs/auto");
+    system("mkdir logs/auto");
+    system("mkdir -p logs/auto/agents");
+    system("mkdir -p logs/auto/bins");
     
     // Prepare log files
-    FILE *repoFile = fopen("logs/rl/repo.csv", "w");
+    FILE *repoFile = fopen("logs/auto/repo.csv", "w");
     
     int binCounter = 0;
     std::vector<Worker> workers = initWorkers();
@@ -299,11 +289,11 @@ void runRL(const int NUM_AGENTS, const int NUM_LAYERS)
     std::vector<AppleBin> bins = initBins(workerGroups, &binCounter);
     
     /* Initialize agents */
-    std::vector<AgentRL> agents;
+    std::vector<AutoAgent> agents;
     for (int i = 0; i < NUM_AGENTS; ++i) {
-        agents.push_back(AgentRL(i, Coordinate(0, 0), NUM_LAYERS));
+        agents.push_back(AutoAgent(i, Coordinate(0, 0), NUM_LAYERS));
         char fname[50];
-        sprintf(fname, "logs/rl/agents/agent%d.csv", i);
+        sprintf(fname, "logs/auto/agents/agent%d.csv", i);
         FILE *fp = fopen(fname, "w");
         agentFiles.push_back(fp);
     }
@@ -311,9 +301,9 @@ void runRL(const int NUM_AGENTS, const int NUM_LAYERS)
     /* Initialize orchard environment with uniform distribution of apples */
     Orchard env;
     std::vector<AppleBin> repo;
+    std::vector<Coordinate> locRequests;
     
     /* Run simulator */
-    std::vector<Coordinate> newLocs;
     for (int t = 0; t < TIME_LIMIT; ++t) {
         printf("------------ T = %d ------------\n", t);
         // Simulate bins and workers
@@ -337,23 +327,24 @@ void runRL(const int NUM_AGENTS, const int NUM_LAYERS)
             
             if (num > 0 && round(env.getApplesAt(bins[b].loc)) <= 0) { // No more apples at current location
                 Coordinate tmp = distributeWorkers(workers, bins, bins[b].loc, env);
-                registerNewLocation(tmp, newLocs, t);
+                registerLocation(tmp, locRequests, t);
                 printf("[%d] No more apples at (%d,%d). %d workers move to (%d,%d).\n", t, bins[b].loc.x, bins[b].loc.y, 
                     num, tmp.x, tmp.y);
             } else if (num > 0 && env.getApplesAt(bins[b].loc) > 0 && round(bins[b].capacity) >= BIN_CAPACITY) {
-                registerNewLocation(bins[b].loc, newLocs, t);
+                registerLocation(bins[b].loc, locRequests, t);
             }
         }
         
-        for (int n = 0; n < (int) newLocs.size(); ++n)
-            printf("[%d] New location request: (%d,%d)\n", t, newLocs[n].x, newLocs[n].y);
+        for (int n = 0; n < (int) locRequests.size(); ++n)
+            printf("[%d] Location requests: (%d,%d)\n", t, locRequests[n].x, locRequests[n].y);
         
         // Simulate agents
         for (int a = 0; a < NUM_AGENTS; ++a)
             agents[a].makePlans(agents, bins, env); // Each agent create plans
         
         for (int a = 0; a < NUM_AGENTS; ++a) {
-            // Auction to determine which agent picks up which bin
+            agents[a].selectPlan(agents, bins); // Each agent selects a plan by negotiating conflict with other agents
+            agents[a].takeAction(&binCounter, bins, locRequests, repo, env);
         }
         
         for (int a = 0; a < NUM_AGENTS; ++a) {
@@ -362,7 +353,7 @@ void runRL(const int NUM_AGENTS, const int NUM_LAYERS)
         }
         
         for (int b = 0; b < (int) bins.size(); ++b)
-            writeBinInfo(t, bins[b]);
+            writeBinInfo("auto", t, bins[b]);
         
         fprintf(repoFile, "%d,%d\n", t, (int) repo.size());
     }
@@ -376,14 +367,17 @@ int main(int argc, char **argv)
         int numAgents = DEFAULT_NUM_AGENTS;
         if (argc >= 3)
             numAgents = parseArgInt(argv[2]);
+        
         runBase(numAgents);
-    } else if (strcmp(argv[1], "-rl") == 0) {
+    } else if (strcmp(argv[1], "-auto") == 0) {
         int numAgents = DEFAULT_NUM_AGENTS;
         int numLayers = DEFAULT_NUM_LAYERS;
+        
         if (argc >= 3)
             numAgents = parseArgInt(argv[2]);
         if (argc >= 4)
             numLayers = parseArgInt(argv[3]);
+        
         runRL(numAgents, numLayers);
     }
     
