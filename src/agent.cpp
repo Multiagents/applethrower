@@ -153,7 +153,7 @@ void Agent::move(AppleBin curBin)
                     int leftDist = curLoc.x;
                     int rightDist = ORCH_COLS - 1 - curLoc.x;
                     if (leftDist < rightDist) // Travel between rows through the leftmost column
-                        curLoc.x = (curLoc.x - 1 <= targetLoc.x) ? targetLoc.x : curLoc.x - 1; // Move left
+                        curLoc.x = (curLoc.x - 1 <= targetLoc.x) ? curLoc.x - 1 : targetLoc.x; // Move left
                     else
                         curLoc.x = (curLoc.x + 1 >= targetLoc.x) ? curLoc.x + 1 : targetLoc.x; // Move right
                 }

@@ -1,0 +1,32 @@
+================================================================================
+|     APPLETHROWER                                                             |
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|
+|     Oregon State University                                                  |
+|     ME 538 Autonomous Agents and Multiagent Systems                          |
+|     Fall 2014                                                                |
+================================================================================
+
+--------------------------------------------------------------------------------
+
+Compiling the simulation program
+    make
+
+--------------------------------------------------------------------------------
+
+Running the simulation
+    ./bin/prog [agent_type] [options=value]
+
+agent_type:
+    -base: Agents use baseline algorithm (no learning, no coordination).
+    -auto: Autonomous agents with auction for coordination.
+
+options:
+    -a: number of agents. Default: 2.
+    -l: number of layers (for autonomous agent). Default: 3.
+    -t: time limit. Default: 10.
+
+Example:
+    ./bin/prog -base -a=4 -t=50
+    ./bin/prog -auto -a=4 -l=5 -t=100
+
+--------------------------------------------------------------------------------
