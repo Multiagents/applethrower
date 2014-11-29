@@ -155,7 +155,7 @@ void Agent::move(AppleBin curBin)
                     if (leftDist < rightDist) // Travel between rows through the leftmost column
                         curLoc.x = (curLoc.x - 1 <= targetLoc.x) ? targetLoc.x : curLoc.x - 1; // Move left
                     else
-                        curLoc.x = (curLoc.x + 1 >= targetLoc.x) ? targetLoc.x : curLoc.x + 1; // Move right
+                        curLoc.x = (curLoc.x + 1 >= targetLoc.x) ? curLoc.x + 1 : targetLoc.x; // Move right
                 }
             }
         }
