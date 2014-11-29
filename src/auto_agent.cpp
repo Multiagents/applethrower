@@ -298,9 +298,9 @@ void AutoAgent::move(Coordinate loc, std::vector<AppleBin> &bins, int index)
                     int leftDist = curLoc.x;
                     int rightDist = ORCH_COLS - 1 - curLoc.x;
                     if (leftDist < rightDist) // Travel between rows through the leftmost column
-                        curLoc.x = (curLoc.x - 1 <= loc.x) ? loc.x : curLoc.x - 1; // Move left
+                        curLoc.x = (curLoc.x - 1 <= loc.x) ? curLoc.x - 1 : loc.x; // Move left
                     else
-                        curLoc.x = (curLoc.x + 1 >= loc.x) ? loc.x : curLoc.x + 1; // Move right
+                        curLoc.x = (curLoc.x + 1 >= loc.x) ? curLoc.x + 1 : loc.x; // Move right
                 }
             }
         }
