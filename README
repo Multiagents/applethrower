@@ -14,7 +14,7 @@ Compiling the simulation program
 --------------------------------------------------------------------------------
 
 Running the simulation
-    ./bin/prog [agent_type] [options=value]
+    ./bin/prog [agent_type] [options=value] [use_learning?]
 
 agent_type:
     -base: Agents use baseline algorithm (no learning, no coordination).
@@ -25,8 +25,12 @@ options:
     -l: number of layers (for autonomous agent). Default: 3.
     -t: time limit. Default: 10.
 
+use_learning?
+    -learn: use reinforcement learning with difference rewards to select location request.
+
 Example:
     ./bin/prog -base -a=4 -t=50
     ./bin/prog -auto -a=4 -l=5 -t=100
+    ./bin/prog -auto -a=4 -t=500 -learn
 
 --------------------------------------------------------------------------------

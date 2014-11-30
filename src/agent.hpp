@@ -27,7 +27,7 @@ public:
     std::vector<int> getIdleBins(std::vector<AppleBin> bins, std::vector<Agent> agents);
     
     void takeAction(int *binCounter, std::vector<AppleBin> &bins, std::vector<AppleBin> &repo, 
-        std::vector<Agent> &agents, Orchard env, std::vector<Coordinate> &newLocs);
+        std::vector<Agent> &agents, Orchard env, std::vector<LocationRequest> &requests);
     
     void move(AppleBin curBin);
     
@@ -42,12 +42,12 @@ private:
     
     int getFirstEstFullBin(std::vector<int> indexes, std::vector<AppleBin> bins);
     
-    void filterRegisteredLocations(std::vector<Coordinate> &newLocs);
+    void filterRegisteredLocations(std::vector<LocationRequest> &requests);
     
     int getBinIndexByLocation(std::vector<AppleBin> &bins, Coordinate loc);
     
     Coordinate selectNewLocation(std::vector<Agent> &agents, std::vector<AppleBin> &bins, 
-        std::vector<Coordinate> &newLocs);
+        std::vector<LocationRequest> &requests);
     
     Coordinate getRepoLocation() { return Coordinate(0, curLoc.y); /* Repo at column 0 at every row */ }
     

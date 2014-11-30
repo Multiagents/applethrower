@@ -110,13 +110,13 @@ void writeBinInfo(const char *subdir, int time, AppleBin ab)
     fclose(fp);
 }
 
-void registerLocation(Coordinate loc, std::vector<Coordinate> &locRequests, int time)
+void registerLocation(Coordinate loc, std::vector<LocationRequest> &requests, int time)
 {
-    for (int i = 0; i < (int) locRequests.size(); ++i) {
-        if (locRequests[i].x == loc.x && locRequests[i].y == loc.y)
+    for (int i = 0; i < (int) requests.size(); ++i) {
+        if (requests[i].loc.x == loc.x && requests[i].loc.y == loc.y)
             return;
     }
-    locRequests.push_back(loc);
+    requests.push_back(loc);
 }
 
 std::vector<Worker> initWorkers()
@@ -190,6 +190,15 @@ std::vector<AppleBin> initBins(std::vector<Coordinate> workerGroups, int *binCou
     return bins;
 }
 
+bool isRequestFulfilled(Coordinate loc, std::vector<AppleBin> bins)
+{
+    for (int i = 0; i < (int) bins.size(); ++i) {
+        if (bins[i].loc.x == loc.x && bins[i].loc.y == loc.y)
+            return true;
+    }
+    return false;
+}
+
 void runBase(const int NUM_AGENTS, const int TIME_LIMIT)
 {
     system("rm -rf logs/base");
@@ -217,7 +226,7 @@ void runBase(const int NUM_AGENTS, const int TIME_LIMIT)
     /* Initialize orchard environment with uniform distribution of apples */
     Orchard env;
     std::vector<AppleBin> repo;
-    std::vector<Coordinate> locRequests;
+    std::vector<LocationRequest> requests;
     
     /* Run simulator */
     printf("START OF SIMULATION\n");
@@ -244,20 +253,20 @@ void runBase(const int NUM_AGENTS, const int TIME_LIMIT)
             
             if (num > 0 && round(env.getApplesAt(bins[b].loc)) <= 0) { // No more apples at current location
                 Coordinate tmp = distributeWorkers(workers, bins, bins[b].loc, env);
-                registerLocation(tmp, locRequests, t);
+                registerLocation(tmp, requests, t);
                 printf("[%d] No more apples at (%d,%d). %d workers move to (%d,%d).\n", t, bins[b].loc.x, bins[b].loc.y, 
                     num, tmp.x, tmp.y);
             } else if (num > 0 && env.getApplesAt(bins[b].loc) > 0 && round(bins[b].capacity) >= BIN_CAPACITY) {
-                registerLocation(bins[b].loc, locRequests, t);
+                registerLocation(bins[b].loc, requests, t);
             }
         }
         
-        for (int n = 0; n < (int) locRequests.size(); ++n)
-            printf("[%d] New location request: (%d,%d)\n", t, locRequests[n].x, locRequests[n].y);
+        for (int n = 0; n < (int) requests.size(); ++n)
+            printf("[%d] New location request: (%d,%d)\n", t, requests[n].loc.x, requests[n].loc.y);
         
         // Simulate agents
         for (int a = 0; a < NUM_AGENTS; ++a) {
-            agents[a].takeAction(&binCounter, bins, repo, agents, env, locRequests);
+            agents[a].takeAction(&binCounter, bins, repo, agents, env, requests);
             Coordinate atmp = agents[a].getCurLoc();
             fprintf(agentFiles[a], "%d,%d,%d\n", t, atmp.x, atmp.y);
         }
@@ -268,11 +277,12 @@ void runBase(const int NUM_AGENTS, const int TIME_LIMIT)
         fprintf(repoFile, "%d,%d\n", t, (int) repo.size());
         printf("------End of T = %d------\n", t);
     }
-    printf("END OF SIMULATION\n");
-    printf("Total bins: %d\n",(int)repo.size());
+    
+    printf("------------ END OF SIMULATION ------------\n");
+    printf("Total bins: %d\n", (int) repo.size());
 }
 
-void runRL(const int NUM_AGENTS, const int NUM_LAYERS, const int TIME_LIMIT)
+void runAutonomous(const int NUM_AGENTS, const int NUM_LAYERS, const int TIME_LIMIT, bool learn)
 {
     system("rm -rf logs/auto");
     system("mkdir logs/auto");
@@ -290,7 +300,7 @@ void runRL(const int NUM_AGENTS, const int NUM_LAYERS, const int TIME_LIMIT)
     /* Initialize agents */
     std::vector<AutoAgent> agents;
     for (int i = 0; i < NUM_AGENTS; ++i) {
-        agents.push_back(AutoAgent(i, Coordinate(0, 0), NUM_LAYERS));
+        agents.push_back(AutoAgent(i, Coordinate(0, 0), NUM_LAYERS, learn));
         char fname[50];
         sprintf(fname, "logs/auto/agents/agent%d.csv", i);
         FILE *fp = fopen(fname, "w");
@@ -300,7 +310,7 @@ void runRL(const int NUM_AGENTS, const int NUM_LAYERS, const int TIME_LIMIT)
     /* Initialize orchard environment with uniform distribution of apples */
     Orchard env;
     std::vector<AppleBin> repo;
-    std::vector<Coordinate> locRequests;
+    std::vector<LocationRequest> requests;
     
     /* Run simulator */
     for (int t = 0; t < TIME_LIMIT; ++t) {
@@ -314,9 +324,12 @@ void runRL(const int NUM_AGENTS, const int NUM_LAYERS, const int TIME_LIMIT)
                 bins[b].fillRate = num * PICK_RATE;
                 bins[b].capacity += bins[b].fillRate; // capacity increase for each time step = fill rate * 1
                 env.decreaseApplesAt(bins[b].loc, bins[b].fillRate);
-                if (bins[b].capacity > BIN_CAPACITY)
+                if (bins[b].capacity >= BIN_CAPACITY) {
                     bins[b].capacity = BIN_CAPACITY;
+                    bins[b].filledTime = t;
+                }
             }
+            
             const char *str = (bins[b].onGround) ? "on ground" : "carried";
             printf("[%d] B%d (%d,%d) %s, capacity: %4.2f. (# workers: %d)\n", t, bins[b].id, bins[b].loc.x, 
                 bins[b].loc.y, str, bins[b].capacity, num);
@@ -327,16 +340,16 @@ void runRL(const int NUM_AGENTS, const int NUM_LAYERS, const int TIME_LIMIT)
             
             if (num > 0 && round(env.getApplesAt(bins[b].loc)) <= 0) { // No more apples at current location
                 Coordinate tmp = distributeWorkers(workers, bins, bins[b].loc, env);
-                registerLocation(tmp, locRequests, t);
+                registerLocation(tmp, requests, t);
                 printf("[%d] No more apples at (%d,%d). %d workers move to (%d,%d).\n", t, bins[b].loc.x, bins[b].loc.y, 
                     num, tmp.x, tmp.y);
             } else if (num > 0 && env.getApplesAt(bins[b].loc) > 0 && round(bins[b].capacity) >= BIN_CAPACITY) {
-                registerLocation(bins[b].loc, locRequests, t);
+                registerLocation(bins[b].loc, requests, t);
             }
         }
         
-        for (int n = 0; n < (int) locRequests.size(); ++n)
-            printf("[%d] Location requests: (%d,%d)\n", t, locRequests[n].x, locRequests[n].y);
+        for (int n = 0; n < (int) requests.size(); ++n)
+            printf("[%d] Location requests: (%d,%d)\n", t, requests[n].loc.x, requests[n].loc.y);
         
         // Simulate agents
         for (int a = 0; a < NUM_AGENTS; ++a)
@@ -344,7 +357,7 @@ void runRL(const int NUM_AGENTS, const int NUM_LAYERS, const int TIME_LIMIT)
         
         for (int a = 0; a < NUM_AGENTS; ++a) {
             agents[a].selectPlan(agents, bins); // Each agent selects a plan by negotiating conflict with other agents
-            agents[a].takeAction(&binCounter, bins, locRequests, agents, repo, env);
+            agents[a].takeAction(&binCounter, bins, requests, agents, repo, env, t);
         }
         
         for (int a = 0; a < NUM_AGENTS; ++a) {
@@ -352,13 +365,21 @@ void runRL(const int NUM_AGENTS, const int NUM_LAYERS, const int TIME_LIMIT)
             fprintf(agentFiles[a], "%d,%d,%d\n", t, atmp.x, atmp.y);
         }
         
+        for (int r = 0; r < (int) requests.size(); ++r) {
+            if (isRequestFulfilled(requests[r].loc, bins)) {
+                requests.erase(requests.begin() + r);
+                --r;
+            }
+        }
+        
         for (int b = 0; b < (int) bins.size(); ++b)
             writeBinInfo("auto", t, bins[b]);
         
         fprintf(repoFile, "%d,%d\n", t, (int) repo.size());
     }
-    printf("END\n");
-    printf("Total bins: %d\n",(int)repo.size());
+    
+    printf("------------ END OF SIMULATION ------------\n");
+    printf("Total bins: %d\n", (int) repo.size());
 }
 
 int main(int argc, char **argv)
@@ -375,18 +396,25 @@ int main(int argc, char **argv)
             else if (argv[i][1] == 't')
                 timeLimit = parseArgInt(argv[i]);
         }
+        printf("---------- Starting simulation with baseline algorithm ----------\n");
         runBase(numAgents, timeLimit);
     } else if (strcmp(argv[1], "-auto") == 0) {
         int numLayers = DEFAULT_NUM_LAYERS;
+        bool learn = false;
         for (int i = 2; i < argc; ++i) {
-            if (argv[i][1] == 'a')
+            if (strcmp(argv[i], "-learn") == 0)
+                learn = true;
+            else if (argv[i][1] == 'a')
                 numAgents = parseArgInt(argv[i]);
             else if (argv[i][1] == 'l')
                 numLayers = parseArgInt(argv[i]);
             else if (argv[i][1] == 't')
                 timeLimit = parseArgInt(argv[i]);
         }
-        runRL(numAgents, numLayers, timeLimit);
+        printf("---------- Starting simulation with autonomous agents ----------\n");
+        if (learn)
+            printf("Learning is used to select location request.\n");
+        runAutonomous(numAgents, numLayers, timeLimit, learn);
     }
     
     return 0;
