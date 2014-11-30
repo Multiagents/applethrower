@@ -20,7 +20,7 @@ public:
     
     int getTargetBinId() { return targetBinId; }
     
-    float getDistance(Coordinate loc1, Coordinate loc2);
+    int getStepCount(Coordinate src, Coordinate dst);
     
     int getBinIndexById(std::vector<AppleBin> bins, int id);
     

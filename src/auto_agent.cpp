@@ -58,14 +58,14 @@ std::vector<int> AutoAgent::getIdleBins(std::vector<AutoAgent> agents, std::vect
             idleBins.push_back(b);
         else
             idleBins.push_back(-1);
-        //printf("idleBins[%d]: %d (B%d)\n", b, idleBins[b], bins[b].id);
     }
     
     for (int a = 0; a < (int) agents.size(); ++a) {
         if (agents[a].id == id)
             continue;
         int bIdx = getBinIndexById(bins, agents[a].getCurBinId());
-        if (bIdx != -1)
+        int stepCount = getStepCount(agents[a].curLoc, agents[a].activeLocation);
+        if (bIdx != -1 && stepCount > AGENT_SPEED_H)
             idleBins[bIdx] = -1;
         int tIdx = getBinIndexById(bins, agents[a].getTargetBinId());
         if (tIdx != -1)
@@ -206,10 +206,8 @@ void AutoAgent::selectPlan(std::vector<AutoAgent> &agents, std::vector<AppleBin>
                 activePlan.value);
             // Broadcast to other agents that the bin is taken
             for (int a = 0; a < (int) agents.size(); ++a) {
-                if (agents[a].id != id) {
-                    //printf("A%d tells A%d to remove plan with B%d.\n", id, agents[a].id, targetBinId);
+                if (agents[a].id != id)
                     agents[a].removePlan(targetBinId);
-                }
             }
             return;
         }
@@ -462,6 +460,11 @@ void AutoAgent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::ve
                     bins[tIdx].loc.x, bins[tIdx].loc.y);
                 return;
             }
+        } else {
+            int cIdx = getBinIndexById(bins, curBinId);
+            move(targetLoc, bins, cIdx);
+            printf("A%d moves to (%d,%d). Target location: (%d,%d).\n", id, curLoc.x, curLoc.y, targetLoc.x, targetLoc.y);
+            return;
         }
     } else { // no active location request and no target bin; return to repo
         targetLoc.x = 0;
