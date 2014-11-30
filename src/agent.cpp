@@ -48,7 +48,8 @@ std::vector<int> Agent::getIdleBins(std::vector<AppleBin> bins, std::vector<Agen
         if (agents[a].id == id)
             continue;
         int bIdx = getBinIndexById(bins, agents[a].getCurBinId());
-        if (bIdx != -1)
+        int stepCount = getStepCount(agents[a].curLoc, agents[a].targetLoc);
+        if (bIdx != -1 && stepCount > AGENT_SPEED_H)
             idleBins[bIdx] = -1;
         int tIdx = getBinIndexById(bins, agents[a].getTargetBinId());
         if (tIdx != -1)
@@ -60,17 +61,22 @@ std::vector<int> Agent::getIdleBins(std::vector<AppleBin> bins, std::vector<Agen
             idleBins.erase(idleBins.begin() + i);
     }
     
-    /*printf("Idle bins indexes: ");
-    for (int i = 0; i < (int) idleBins.size(); ++i)
-        printf("%d(%d) ", bins[idleBins[i]].id, idleBins[i]);
-    printf("\n");
-    */
     return idleBins;
 }
 
-float Agent::getDistance(Coordinate loc1, Coordinate loc2)
+int Agent::getStepCount(Coordinate src, Coordinate dst)
 {
-    return abs(loc1.x - loc2.x) + abs(loc1.y - loc2.y);
+    int initStep = 0;
+    if (!isLocationValid(src) || !isLocationValid(dst))
+        return 0;
+    
+    if (src.y != dst.y) {
+        int leftStep = src.x - 0;
+        int rightStep = ORCH_COLS - 1 - src.x;
+        initStep = (leftStep <= rightStep) ? leftStep : rightStep;
+    }
+    
+    return initStep + abs(src.x - dst.x) + abs(src.y - dst.y);
 }
 
 int Agent::getFirstEstFullBin(std::vector<int> indexes, std::vector<AppleBin> bins)
@@ -83,7 +89,7 @@ int Agent::getFirstEstFullBin(std::vector<int> indexes, std::vector<AppleBin> bi
     float minDist = FLT_MAX;
     
     for (int i = 0; i < (int) indexes.size(); ++i) {
-        float dist = getDistance(curLoc, bins[indexes[i]].loc);
+        float dist = getStepCount(curLoc, bins[indexes[i]].loc);
         float estTime = dist / AGENT_SPEED_L;
         float estIncrease = estTime * bins[indexes[i]].fillRate;
         float estCap = bins[indexes[i]].capacity + estIncrease;
@@ -108,7 +114,7 @@ int Agent::getClosestFullBin(std::vector<int> indexes, std::vector<AppleBin> bin
     for (int b = 0; b < (int) indexes.size(); ++b) {
         if (bins[indexes[b]].capacity < BIN_CAPACITY)
             continue;
-        int dist = getDistance(curLoc, bins[indexes[b]].loc);
+        int dist = getStepCount(curLoc, bins[indexes[b]].loc);
         if (dist < minDist) {
             minBinIdx = indexes[b];
             minDist = dist;
@@ -130,7 +136,6 @@ void Agent::move(AppleBin curBin)
     
     int speed = AGENT_SPEED_H;
     if (curBinId != -1 && curBin.capacity > 0)
-    //if (curBinId != -1)
         speed = AGENT_SPEED_L;
     
     for (int s = 0; s < speed; ++s) {
