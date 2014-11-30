@@ -172,11 +172,32 @@ void Agent::filterRegisteredLocations(std::vector<LocationRequest> &requests)
     }
 }
 
-int Agent::getBinIndexByLocation(std::vector<AppleBin> &bins, Coordinate loc)
+int Agent::checkIfCarryingBin(std::vector<Agent> &agents, std::vector<AppleBin> &bins, Coordinate loc)
+{
+    for (int a = 0; a < (int) agents.size(); ++a) {
+        Coordinate tmp = agents[a].getTargetLoc();
+        if (tmp.x == loc.x && tmp.y == loc.y) {
+            printf("This one is going there: A%d\n", a);
+            int binId = agents[a].getCurBinId();
+            printf("A%d 's bin ID = %d\n", a, binId);
+            if (binId != -1) {
+                return binId;
+            }    
+        }
+    }
+    return -1;
+}
+
+int Agent::getBinIndexByLocation(std::vector<Agent> &agents, std::vector<AppleBin> &bins, Coordinate loc)
 {
     for (int b = 0; b < (int) bins.size(); ++b) {
-        if (bins[b].loc.x == loc.x && bins[b].loc.y == loc.y)
-            return b;
+        // bug fixed here. If the bin on ground is not full, return b.
+        if (bins[b].loc.x == loc.x && bins[b].loc.y == loc.y) {
+            int carry = checkIfCarryingBin(agents, bins, loc);
+            if (carry != -1) {
+                return b;
+            }
+        }     
     }
     return -1;
 }
@@ -185,7 +206,7 @@ Coordinate Agent::selectNewLocation(std::vector<Agent> &agents, std::vector<Appl
     std::vector<LocationRequest> &requests)
 {
     for (int n = 0; n < (int) requests.size(); ++n) {
-        int idx = getBinIndexByLocation(bins, requests[n].loc);
+        int idx = getBinIndexByLocation(agents, bins, requests[n].loc);
         if (idx == -1) {
             return requests[n].loc;
         }

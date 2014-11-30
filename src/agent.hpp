@@ -44,7 +44,9 @@ private:
     
     void filterRegisteredLocations(std::vector<LocationRequest> &requests);
     
-    int getBinIndexByLocation(std::vector<AppleBin> &bins, Coordinate loc);
+    int getBinIndexByLocation(std::vector<Agent> &agents, std::vector<AppleBin> &bins, Coordinate loc);
+
+    int checkIfCarryingBin(std::vector<Agent> &agents, std::vector<AppleBin> &bins, Coordinate loc);
     
     Coordinate selectNewLocation(std::vector<Agent> &agents, std::vector<AppleBin> &bins, 
         std::vector<LocationRequest> &requests);
