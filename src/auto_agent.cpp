@@ -291,6 +291,9 @@ Coordinate AutoAgent::selectLocationRequest(std::vector<LocationRequest> request
         tmpStates.push_back(s);
     }
     
+    if (tmpStates.size() == 0)
+        return Coordinate(-1, -1);
+    
     int maxIdx = 0;
     float maxReward = tmpStates[maxIdx].reward;
     for (int i = 1; i < (int) tmpStates.size(); ++i) {
