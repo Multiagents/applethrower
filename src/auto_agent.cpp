@@ -414,8 +414,6 @@ void AutoAgent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::ve
         lastActiveLoc = activeLocation;
     }
     
-    //removeLocationRequest(activeLocation, locRequests);
-    
     if (isLocationValid(activeLocation)) {
         if (curBinId == -1 && curLoc.x == 0) { // get a new bin
             curBinId = (*binCounter)++;
@@ -464,10 +462,12 @@ void AutoAgent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::ve
             int cIdx = getBinIndexById(bins, curBinId);
             move(targetLoc, bins, cIdx);
             printf("A%d moves to (%d,%d). Target location: (%d,%d).\n", id, curLoc.x, curLoc.y, targetLoc.x, targetLoc.y);
-            return;
         }
     } else { // no active location request and no target bin; return to repo
         targetLoc.x = 0;
+        int cIdx = getBinIndexById(bins, curBinId);
+        move(targetLoc, bins, cIdx);
+        return;
     }
     
     if (targetBinId != -1)
