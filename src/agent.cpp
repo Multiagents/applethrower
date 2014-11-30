@@ -229,6 +229,7 @@ void Agent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::vector
                 targetLoc = bins[tmpIdx].loc;
             } else {
                 tmpIdx = getFirstEstFullBin(idleBins, bins);
+                //printf("A%d(%d,%d) closest first est. full bin index: %d\n", id, curLoc.x, curLoc.y, tmpIdx);
                 if (tmpIdx != -1) {
                     targetBinId = bins[tmpIdx].id;
                     targetLoc = bins[tmpIdx].loc;

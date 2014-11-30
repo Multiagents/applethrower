@@ -157,7 +157,7 @@ std::vector<Coordinate> initWorkerGroupsFixed(std::vector<Worker> &workers)
     std::vector<Coordinate> workerGroups;
     int count = 0;
     
-    while (count < 2) {
+    while (count < int(NUM_WORKERS/5)) {
         int x = 3 + count;
         int y = 2 + count;
         int num = 5;
