@@ -269,6 +269,7 @@ void runBase(const int NUM_AGENTS, const int TIME_LIMIT)
         printf("------End of T = %d------\n", t);
     }
     printf("END OF SIMULATION\n");
+    printf("Total bins: %d\n",(int)repo.size());
 }
 
 void runRL(const int NUM_AGENTS, const int NUM_LAYERS, const int TIME_LIMIT)
@@ -356,6 +357,8 @@ void runRL(const int NUM_AGENTS, const int NUM_LAYERS, const int TIME_LIMIT)
         
         fprintf(repoFile, "%d,%d\n", t, (int) repo.size());
     }
+    printf("END\n");
+    printf("Total bins: %d\n",(int)repo.size());
 }
 
 int main(int argc, char **argv)

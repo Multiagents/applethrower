@@ -231,17 +231,27 @@ void Agent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::vector
             printf("A%d sees %d new locations without bins.\n", id, (int) newLocs.size());
             Coordinate newLoc = selectNewLocation(agents, bins, newLocs);
             if (newLoc.x != -1 && newLoc.y != -1) { // There's a registered location without any bin
-                curBinId = (*binCounter);
-                (*binCounter)++;
-                bins.push_back(AppleBin(curBinId, curLoc.x, curLoc.y));
-                targetBinId = -1;
-                targetLoc = newLocs[0];
-                newLocs.erase(newLocs.begin());
-                int cIdx = getBinIndexById(bins, curBinId);
-                move(bins[cIdx]);
-                if (cIdx != -1)
-                    bins[cIdx].loc = curLoc;
-                printf("A%d(%d,%d) carries new bin B%d to (%d,%d).\n", id, curLoc.x, curLoc.y, bins[cIdx].id, targetLoc.x, targetLoc.y);
+                if (curLoc.x != 0 && curBinId == -1){ // Agent is in orchard and carries no bin
+                     targetLoc = getRepoLocation();
+                     int cIdx = getBinIndexById(bins, curBinId);
+                     move(bins[cIdx]);
+                     printf("A%d sees %d new locations without bins, and move back to repo to get a new bin. (%d,%d)\n", id, (int) newLocs.size(),curLoc.x,curLoc.y);
+                 
+                } else {
+                        curBinId = (*binCounter);
+                        (*binCounter)++;
+                        bins.push_back(AppleBin(curBinId, curLoc.x, curLoc.y));
+                        targetBinId = -1;
+                        targetLoc = newLocs[0];
+                        newLocs.erase(newLocs.begin());
+                        int cIdx = getBinIndexById(bins, curBinId);
+                        move(bins[cIdx]);
+                        if (cIdx != -1)
+                            bins[cIdx].loc = curLoc;
+                        printf("A%d(%d,%d) carries new bin B%d to (%d,%d).\n", id, curLoc.x, curLoc.y, bins[cIdx].id, targetLoc.x, targetLoc.y);
+                }
+            } else {
+                printf("However, somone else is taking care of that. A%d (%d,%d) is idle.\n", id, curLoc.x, curLoc.y);
             }
         } else {
             printf("A%d(%d,%d) is idle.\n", id, curLoc.x, curLoc.y);
