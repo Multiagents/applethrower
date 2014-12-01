@@ -256,11 +256,14 @@ void runBase(const int NUM_AGENTS, const int TIME_LIMIT)
                 }
             } else if (num > 0 && env.getApplesAt(bins[b].loc) > 0 && round(bins[b].capacity) >= BIN_CAPACITY) {
                 registerLocation(bins[b].loc, requests, t);
+                printf("There are still %4.2f apples at (%d,%d).\n", env.getApplesAt(bins[b].loc), bins[b].loc.x, bins[b].loc.y);
             }
         }
         
-        for (int n = 0; n < (int) requests.size(); ++n)
-            printf("[%d] New location request: (%d,%d)\n", t, requests[n].loc.x, requests[n].loc.y);
+        for (int n = 0; n < (int) requests.size(); ++n) {
+            printf("[%d] New location request: (%d,%d). Remaining apples: %4.2f\n", t, requests[n].loc.x, 
+                requests[n].loc.y, env.getApplesAt(requests[n].loc));
+        }
         
         // Simulate agents
         for (int a = 0; a < NUM_AGENTS; ++a) {
@@ -354,8 +357,13 @@ void runAutonomous(const int NUM_AGENTS, const int NUM_LAYERS, const int TIME_LI
         }
         
         for (int n = 0; n < (int) requests.size(); ++n) {
-            printf("[%d] Location requests: (%d,%d). Remaining apples: %4.2f\n", t, requests[n].loc.x, requests[n].loc.y, 
-                env.getApplesAt(requests[n].loc));
+            if (env.getApplesAt(requests[n].loc) == 0) {
+                requests.erase(requests.begin() + n);
+                --n;
+            } else {
+                printf("[%d] Location requests: (%d,%d). Remaining apples: %4.2f\n", t, requests[n].loc.x, requests[n].loc.y, 
+                    env.getApplesAt(requests[n].loc));
+            }
         }
         
         // Simulate agents
@@ -367,16 +375,16 @@ void runAutonomous(const int NUM_AGENTS, const int NUM_LAYERS, const int TIME_LI
             agents[a].takeAction(&binCounter, bins, requests, agents, repo, env, t);
         }
         
-        for (int a = 0; a < NUM_AGENTS; ++a) {
-            Coordinate atmp = agents[a].getCurLoc();
-            fprintf(agentFiles[a], "%d,%d,%d\n", t, atmp.x, atmp.y);
-        }
-        
         for (int r = 0; r < (int) requests.size(); ++r) {
             if (isRequestFulfilled(requests[r].loc, bins)) {
                 requests.erase(requests.begin() + r); // filter out fulfilled requests
                 --r;
             }
+        }
+        
+        for (int a = 0; a < NUM_AGENTS; ++a) {
+            Coordinate atmp = agents[a].getCurLoc();
+            fprintf(agentFiles[a], "%d,%d,%d\n", t, atmp.x, atmp.y);
         }
         
         for (int b = 0; b < (int) bins.size(); ++b)
