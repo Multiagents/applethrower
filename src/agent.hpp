@@ -42,9 +42,11 @@ private:
     
     int getFirstEstFullBin(std::vector<int> indexes, std::vector<AppleBin> bins);
     
-    void filterRegisteredLocations(std::vector<LocationRequest> &requests);
+    void filterRegisteredLocations(std::vector<LocationRequest> &requests, Coordinate loc);
     
     int getBinIndexByLocation(std::vector<Agent> &agents, std::vector<AppleBin> &bins, Coordinate loc);
+    
+    int getBinIndexByLocation(std::vector<AppleBin> bins, Coordinate loc);
 
     int checkIfCarryingBin(std::vector<Agent> &agents, std::vector<AppleBin> &bins, Coordinate loc);
     
@@ -54,6 +56,8 @@ private:
     Coordinate getRepoLocation() { return Coordinate(0, curLoc.y); /* Repo at column 0 at every row */ }
     
     bool isLocationValid(Coordinate loc);
+    
+    bool agentWithNewBin(std::vector<Agent> agents, std::vector<AppleBin> bins, Coordinate loc);
     
     AppleBin copyBin(AppleBin ab);
 };

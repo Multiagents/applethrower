@@ -64,21 +64,32 @@ std::vector<int> AutoAgent::getIdleBins(std::vector<AutoAgent> agents, std::vect
     for (int a = 0; a < (int) agents.size(); ++a) {
         if (agents[a].id == id)
             continue;
-        int bIdx = getBinIndexById(bins, agents[a].getCurBinId());
+        int bIdx = getBinIndexById(bins, agents[a].curBinId);
         if (bIdx != -1)
             idleBins[bIdx] = -1;
-        int tIdx = getBinIndexById(bins, agents[a].getTargetBinId());
-        if (tIdx != -1)
-            idleBins[tIdx] = -1;
-        int stepCount = getStepCount(agents[a].curLoc, agents[a].targetLoc);
-        if (bIdx != -1 && stepCount == 0)
+        int stepCount = getStepCount(agents[a].curLoc, agents[a].activeLocation);
+        if (bIdx != -1 && stepCount == 0 && agents[a].activeLocation.x != 0 && agents[a].activeLocation.x != -1) {
             idleBins[bIdx] = bIdx;
+        }
     }
     
-    for (int i = idleBins.size() - 1; i >= 0; --i) {
-        if (idleBins[i] == -1)
-            idleBins.erase(idleBins.begin() + i);
+    for (int a = 0; a < (int) agents.size(); ++a) {
+        int tIdx = getBinIndexById(bins, agents[a].targetBinId);
+        if (tIdx != -1)
+            idleBins[tIdx] = -1;
     }
+    
+    for (int i = 0; i < (int) idleBins.size(); ++i) {
+        if (idleBins[i] == -1) {
+            idleBins.erase(idleBins.begin() + i);
+            --i;
+        }
+    }
+    
+    /*printf("IdleBins: ");
+    for (int i = 0; i < (int) idleBins.size(); ++i)
+        printf("B%d ", bins[idleBins[i]].id);
+    printf("\n");*/
     
     return idleBins;
 }
@@ -143,11 +154,13 @@ float AutoAgent::calcPathValues(int binPath[], std::vector<AppleBin> bins, std::
             ab.loc = getCarrierDestination(ab, agents);
             ab.fillRate = countWorkersAt(ab.loc, workers) * PICK_RATE;
         }
+        //printf("[A%d] id: %d, (%d,%d) fillRate: %4.2f\n", id, ab.id, ab.loc.x, ab.loc.y, ab.fillRate);
         
         float prevTime = (j > 0) ? times[j - 1] : 0;
         float reachTime = ((float) getStepCount(curLoc, ab.loc)) / AGENT_SPEED_H;
         float waitTime = calcWaitTime(ab, env, reachTime);
         float returnTime = (ab.loc.x - 0) / AGENT_SPEED_L; // bin.loc.x - 0 (repo at column 0)
+        //printf("reach: %4.2f, wait: %4.2f, return: %4.2f\n", reachTime, waitTime, returnTime);
         times[j] = prevTime + reachTime + waitTime + returnTime;
     }
     
@@ -443,11 +456,12 @@ void AutoAgent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::ve
 {
     int tIdx = getBinIndexById(bins, targetBinId);
     if (tIdx != -1 && curLoc.x == 0) {
-        if (env.getApplesAt(bins[tIdx].loc) - BIN_CAPACITY > 0 && curLoc.x == 0) {
+        if (bins[tIdx].onGround && env.getApplesAt(bins[tIdx].loc) - BIN_CAPACITY > 0 && curLoc.x == 0) {
             curBinId = (*binCounter)++;
             bins.push_back(AppleBin(curBinId, curLoc.x, curLoc.y));
             activeLocation = targetLoc;
-            printf("A%d takes a new bin B%d to (%d,%d).\n", id, curBinId, activeLocation.x, activeLocation.y);
+            printf("A%d takes a new bin B%d to (%d,%d). targetBin: %d, tIdx: %d (1)\n", id, curBinId, 
+                activeLocation.x, activeLocation.y, targetBinId, tIdx);
             // save history for calculating reward
             lastDecisionTime = curTime;
             lastDecisionLoc = curLoc;
@@ -471,7 +485,7 @@ void AutoAgent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::ve
         if (curBinId == -1 && curLoc.x == 0) { // get a new bin
             curBinId = (*binCounter)++;
             bins.push_back(AppleBin(curBinId, curLoc.x, curLoc.y));
-            printf("A%d takes a new bin B%d to (%d,%d).\n", id, curBinId, activeLocation.x, activeLocation.y);
+            printf("A%d takes a new bin B%d to (%d,%d).(2)\n", id, curBinId, activeLocation.x, activeLocation.y);
         }
         
         int cIdx = getBinIndexById(bins, curBinId);
@@ -513,11 +527,11 @@ void AutoAgent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::ve
                 }
                 return;
             }
-        } else {
+        } /*else {
             int cIdx = getBinIndexById(bins, curBinId);
             move(targetLoc, bins, cIdx);
             printf("A%d moves to (%d,%d). Target location: (%d,%d).\n", id, curLoc.x, curLoc.y, targetLoc.x, targetLoc.y);
-        }
+        }*/
     } else { // no active location request and no target bin; return to repo
         targetLoc.x = 0;
         int cIdx = getBinIndexById(bins, curBinId);
