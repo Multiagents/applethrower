@@ -32,6 +32,8 @@ public:
     
     ~AutoAgent();
     
+    int getId() { return id; }
+    
     Coordinate getCurLoc() { return curLoc; }
     
     Coordinate getTargetLoc() { return targetLoc; }
@@ -52,9 +54,10 @@ public:
     
     float calcWaitTime(AppleBin ab, Orchard env, float reachTime);
     
-    float calcPathValues(int binPath[], std::vector<AppleBin> bins, Orchard env);
+    float calcPathValues(int binPath[], std::vector<AppleBin> bins, std::vector<AutoAgent> agents, Orchard env, 
+        std::vector<Worker> workers);
     
-    void makePlans(std::vector<AutoAgent> agents, std::vector<AppleBin> bins, Orchard env);
+    void makePlans(std::vector<AutoAgent> agents, std::vector<AppleBin> bins, Orchard env, std::vector<Worker> workers);
     
     void selectPlan(std::vector<AutoAgent> &agents, std::vector<AppleBin> bins);
     
@@ -91,6 +94,10 @@ private:
     Coordinate lastActiveLoc;
     float binWaitTime;
     float humanWaitTime;
+    
+    Coordinate getCarrierDestination(AppleBin ab, std::vector<AutoAgent> agents);
+    
+    int countWorkersAt(Coordinate loc, std::vector<Worker> workers);
     
     void removePlan(int binId);
     
