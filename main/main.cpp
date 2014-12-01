@@ -360,7 +360,7 @@ void runAutonomous(const int NUM_AGENTS, const int NUM_LAYERS, const int TIME_LI
         
         for (int r = 0; r < (int) requests.size(); ++r) {
             if (isRequestFulfilled(requests[r].loc, bins)) {
-                requests.erase(requests.begin() + r);
+                requests.erase(requests.begin() + r); // filter out fulfilled requests
                 --r;
             }
         }
