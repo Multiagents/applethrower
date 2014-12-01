@@ -49,8 +49,10 @@ std::vector<int> Agent::getIdleBins(std::vector<AppleBin> bins, std::vector<Agen
             continue;
         int bIdx = getBinIndexById(bins, agents[a].getCurBinId());
         int stepCount = getStepCount(agents[a].curLoc, agents[a].targetLoc);
-        if (bIdx != -1 && stepCount > AGENT_SPEED_H)
-            idleBins[bIdx] = -1;
+        if ((bIdx != -1 && stepCount == 0)) {
+            printf("This one should be good: B%d\n", agents[a].getCurBinId());
+            idleBins[bIdx] = bIdx;
+        }  
         int tIdx = getBinIndexById(bins, agents[a].getTargetBinId());
         if (tIdx != -1)
             idleBins[tIdx] = -1;
@@ -60,7 +62,6 @@ std::vector<int> Agent::getIdleBins(std::vector<AppleBin> bins, std::vector<Agen
         if (idleBins[i] == -1)
             idleBins.erase(idleBins.begin() + i);
     }
-    
     return idleBins;
 }
 
