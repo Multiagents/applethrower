@@ -155,21 +155,15 @@ std::vector<Coordinate> initWorkerGroupsRandom(std::vector<Worker> &workers)
 std::vector<Coordinate> initWorkerGroupsFixed(std::vector<Worker> &workers)
 {
     std::vector<Coordinate> workerGroups;
-    int count = 0;
     
-    while (count < 2) {
-        int x = 3 + count;
-        int y = 2 + count;
-        int num = 5;
-        // Register workers' locations
-        for (int n = num * count; n < num * (count + 1); ++n) {
-            workers[n].loc.x = x;
-            workers[n].loc.y = y;
-            //printf("workers %d at location (%d, %d).\n", n, x, y);
-        }
-        ++count;
-        workerGroups.push_back(Coordinate(x, y));
-    }
+    workerGroups.push_back(Coordinate(3, 2));
+    workerGroups.push_back(Coordinate(4, 3));
+    
+    // Register workers' locations
+    for (int i = 0; i < 5; ++i)
+        workers[i].loc = workerGroups[0];
+    for (int i = 5; i < 10; ++i)
+        workers[i].loc = workerGroups[1];
     
     return workerGroups;
 }
@@ -229,8 +223,8 @@ void runBase(const int NUM_AGENTS, const int TIME_LIMIT)
     std::vector<LocationRequest> requests;
     
     /* Run simulator */
-    printf("START OF SIMULATION\n");
     for (int t = 0; t < TIME_LIMIT; ++t) {
+        printf("------------ T = %d ------------\n", t);
         // Simulate bins and workers
         // Harvest only happens when there's bin on the location. Downside: workers will have to wait for bins.
         for (int b = 0; b < (int) bins.size(); ++b) {
@@ -275,7 +269,6 @@ void runBase(const int NUM_AGENTS, const int TIME_LIMIT)
             writeBinInfo("base", t, bins[b]);
         
         fprintf(repoFile, "%d,%d\n", t, (int) repo.size());
-        printf("------End of T = %d------\n", t);
     }
     
     printf("------------ END OF SIMULATION ------------\n");
