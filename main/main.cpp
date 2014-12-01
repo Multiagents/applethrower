@@ -72,7 +72,9 @@ Coordinate findNewAppleLocation(std::vector<Worker> workers, Coordinate curLoc, 
     Coordinate maxLoc(-1, -1);
     for (int r = 0; r < ORCH_ROWS; ++r) {
         for (int c = 1; c < ORCH_COLS - 1; c++) {
-            Coordinate tmp(r, c);
+            Coordinate tmp(c, r);
+            if (env.getApplesAt(tmp) == 0)
+                continue;
             if (getNumWorkersAt(workers, tmp) == 0) {
                 return tmp;
             } else {
@@ -247,9 +249,11 @@ void runBase(const int NUM_AGENTS, const int TIME_LIMIT)
             
             if (num > 0 && round(env.getApplesAt(bins[b].loc)) <= 0) { // No more apples at current location
                 Coordinate tmp = distributeWorkers(workers, bins, bins[b].loc, env);
-                registerLocation(tmp, requests, t);
-                printf("[%d] No more apples at (%d,%d). %d workers move to (%d,%d).\n", t, bins[b].loc.x, bins[b].loc.y, 
-                    num, tmp.x, tmp.y);
+                if (tmp.x > 0 && tmp.x < ORCH_COLS - 1 && tmp.y >= 0 && tmp.y < ORCH_ROWS) {
+                    registerLocation(tmp, requests, t);
+                    printf("[%d] No more apples at (%d,%d). %d workers move to (%d,%d).\n", t, bins[b].loc.x, 
+                        bins[b].loc.y, num, tmp.x, tmp.y);
+                }
             } else if (num > 0 && env.getApplesAt(bins[b].loc) > 0 && round(bins[b].capacity) >= BIN_CAPACITY) {
                 registerLocation(bins[b].loc, requests, t);
             }
@@ -269,6 +273,12 @@ void runBase(const int NUM_AGENTS, const int TIME_LIMIT)
             writeBinInfo("base", t, bins[b]);
         
         fprintf(repoFile, "%d,%d\n", t, (int) repo.size());
+        
+        int appleLocCount = 0;
+        if (env.getTotalApples(&appleLocCount) == 0 && repo.size() >= 80) {
+            printf("No more apples in orchard. Terminating simulation.\n");
+            break;
+        }
     }
     
     printf("------------ END OF SIMULATION ------------\n");
@@ -333,20 +343,24 @@ void runAutonomous(const int NUM_AGENTS, const int NUM_LAYERS, const int TIME_LI
             
             if (num > 0 && round(env.getApplesAt(bins[b].loc)) <= 0) { // No more apples at current location
                 Coordinate tmp = distributeWorkers(workers, bins, bins[b].loc, env);
-                registerLocation(tmp, requests, t);
-                printf("[%d] No more apples at (%d,%d). %d workers move to (%d,%d).\n", t, bins[b].loc.x, bins[b].loc.y, 
-                    num, tmp.x, tmp.y);
+                if (tmp.x > 0 && tmp.x < ORCH_COLS - 1 && tmp.y >= 0 && tmp.y < ORCH_ROWS) {
+                    registerLocation(tmp, requests, t);
+                    printf("[%d] No more apples at (%d,%d). %d workers move to (%d,%d).\n", t, bins[b].loc.x, 
+                        bins[b].loc.y, num, tmp.x, tmp.y);
+                }
             } else if (num > 0 && env.getApplesAt(bins[b].loc) > 0 && round(bins[b].capacity) >= BIN_CAPACITY) {
                 registerLocation(bins[b].loc, requests, t);
             }
         }
         
-        for (int n = 0; n < (int) requests.size(); ++n)
-            printf("[%d] Location requests: (%d,%d)\n", t, requests[n].loc.x, requests[n].loc.y);
+        for (int n = 0; n < (int) requests.size(); ++n) {
+            printf("[%d] Location requests: (%d,%d). Remaining apples: %4.2f\n", t, requests[n].loc.x, requests[n].loc.y, 
+                env.getApplesAt(requests[n].loc));
+        }
         
         // Simulate agents
         for (int a = 0; a < NUM_AGENTS; ++a)
-            agents[a].makePlans(agents, bins, env); // Each agent create plans
+            agents[a].makePlans(agents, bins, env, workers); // Each agent create plans
         
         for (int a = 0; a < NUM_AGENTS; ++a) {
             agents[a].selectPlan(agents, bins); // Each agent selects a plan by negotiating conflict with other agents
@@ -369,10 +383,18 @@ void runAutonomous(const int NUM_AGENTS, const int NUM_LAYERS, const int TIME_LI
             writeBinInfo("auto", t, bins[b]);
         
         fprintf(repoFile, "%d,%d\n", t, (int) repo.size());
+        
+        int appleLocCount = 0;
+        if (env.getTotalApples(&appleLocCount) == 0 && repo.size() >= 80) {
+            printf("No more apples in orchard. Terminating simulation.\n");
+            break;
+        }
     }
     
     printf("------------ END OF SIMULATION ------------\n");
     printf("Total bins: %d\n", (int) repo.size());
+    int cellCount = 0;
+    printf("Remaining apples in orchard: %4.2f in %d locations\n", env.getTotalApples(&cellCount), cellCount);
 }
 
 int main(int argc, char **argv)
