@@ -76,7 +76,8 @@ public:
     void move(Coordinate loc, std::vector<AppleBin> &bins, int index);
     
     void takeAction(int *binCounter, std::vector<AppleBin> &bins, std::vector<LocationRequest> &requests, 
-        std::vector<AutoAgent> &agents, std::vector<AppleBin> &repo, Orchard env, int curTime);
+        std::vector<AutoAgent> &agents, std::vector<AppleBin> &repo, Orchard env, std::vector<Worker> workers, 
+        int curTime);
     
 private:
     int id;
