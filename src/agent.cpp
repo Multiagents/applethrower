@@ -267,6 +267,7 @@ void Agent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::vector
                         curBinId = (*binCounter);
                         (*binCounter)++;
                         bins.push_back(AppleBin(curBinId, curLoc.x, curLoc.y));
+                        printf("A%d takes a new bin B%d to (%d,%d).\n", id, curBinId, targetLoc.x, targetLoc.y);
                         targetBinId = -1;
                         targetLoc = requests[0].loc;
                         requests.erase(requests.begin());
