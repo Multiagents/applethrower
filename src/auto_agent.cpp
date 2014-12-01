@@ -321,9 +321,12 @@ Coordinate AutoAgent::selectClosestLocationRequest(Coordinate loc, std::vector<L
             continue;
         }
         
-        int tmp = getStepCount(curLoc, requests[i].loc) + getStepCount(loc, requests[i].loc) 
-            + getStepCount(loc, Coordinate(0, loc.y));
-        //int tmp = getStepCount(loc, requests[i].loc);
+        int tmp = getStepCount(curLoc, requests[i].loc);
+        if (loc.x != -1 && loc.y != -1)
+            tmp += getStepCount(loc, requests[i].loc) + getStepCount(loc, Coordinate(0, loc.y));
+        else
+            tmp += getStepCount(curLoc, requests[i].loc);
+        
         if (tmp < minStep) {
             minIdx = i;
             minStep = tmp;
