@@ -120,15 +120,7 @@ int AutoAgent::getBinIndexByLoc(std::vector<AppleBin> bins, Coordinate loc)
 
 float AutoAgent::calcWaitTime(AppleBin ab, Orchard env, float reachTime, std::vector<AppleBin> bins)
 {
-    int extraTime = 0;
-    if (!ab.onGround) {
-        int eIdx = getBinIndexByLoc(bins, ab.loc);
-        if (eIdx != -1) {
-            extraTime = round(BIN_CAPACITY - bins[eIdx].capacity) / bins[eIdx].fillRate;
-        }
-    }
-    
-    float harvestedApples = ab.fillRate * (reachTime - extraTime);
+    float harvestedApples = ab.fillRate * (reachTime);
     if (env.getApplesAt(ab.loc) - harvestedApples <= 0)
         return 0.0f;
     
@@ -171,13 +163,13 @@ float AutoAgent::calcPathValues(int binPath[], std::vector<AppleBin> bins, std::
             ab.loc = getCarrierDestination(ab, agents);
             ab.fillRate = countWorkersAt(ab.loc, workers) * PICK_RATE;
         }
-        //printf("[A%d] id: %d, (%d,%d) fillRate: %4.2f\n", id, ab.id, ab.loc.x, ab.loc.y, ab.fillRate);
+        //printf("[A%d] B%d, (%d,%d) fillRate: %4.2f\n", id, ab.id, ab.loc.x, ab.loc.y, ab.fillRate);
         
         float prevTime = (j > 0) ? times[j - 1] : 0;
         float reachTime = ((float) getStepCount(curLoc, ab.loc)) / AGENT_SPEED_H;
         float waitTime = calcWaitTime(ab, env, reachTime, bins);
         float returnTime = (ab.loc.x - 0) / AGENT_SPEED_L; // bin.loc.x - 0 (repo at column 0)
-        //printf("[A%d] A%d, reach: %4.2f, wait: %4.2f, return: %4.2f\n", id, ab.id, reachTime, waitTime, returnTime);
+        //printf("[A%d] B%d, reach: %4.2f, wait: %4.2f, return: %4.2f\n", id, ab.id, reachTime, waitTime, returnTime);
         times[j] = prevTime + reachTime + waitTime + returnTime;
     }
     
@@ -329,9 +321,12 @@ Coordinate AutoAgent::selectClosestLocationRequest(Coordinate loc, std::vector<L
             continue;
         }
         
-        int tmp = getStepCount(curLoc, requests[i].loc) + getStepCount(loc, requests[i].loc) 
-            + getStepCount(loc, Coordinate(0, loc.y));
-        //int tmp = getStepCount(loc, requests[i].loc);
+        int tmp = getStepCount(curLoc, requests[i].loc);
+        if (loc.x != -1 && loc.y != -1)
+            tmp += getStepCount(loc, requests[i].loc) + getStepCount(loc, Coordinate(0, loc.y));
+        else
+            tmp += getStepCount(curLoc, requests[i].loc);
+        
         if (tmp < minStep) {
             minIdx = i;
             minStep = tmp;
@@ -472,11 +467,17 @@ float AutoAgent::getCFReward(std::vector<LocationRequest> requests, AppleBin ab)
 }
 
 void AutoAgent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::vector<LocationRequest> &requests, 
-    std::vector<AutoAgent> &agents, std::vector<AppleBin> &repo, Orchard env, int curTime)
+    std::vector<AutoAgent> &agents, std::vector<AppleBin> &repo, Orchard env, std::vector<Worker> workers, int curTime)
 {
     int tIdx = getBinIndexById(bins, targetBinId);
     if (tIdx != -1 && curLoc.x == 0) {
-        if (curBinId == -1 && bins[tIdx].onGround && round(env.getApplesAt(bins[tIdx].loc) - BIN_CAPACITY) > 0) { // TODO if bin not on ground?
+        float remainingApples = env.getApplesAt(bins[tIdx].loc);
+        float fillRate = countWorkersAt(targetLoc, workers) * PICK_RATE;
+        float harvestedApples = fillRate * (getStepCount(curLoc, bins[tIdx].loc) + 1);
+        if (bins[tIdx].onGround)
+            remainingApples -= harvestedApples;
+        //printf("rem apples at (%d,%d) = %4.2f\n", bins[tIdx].loc.x, bins[tIdx].loc.y, remainingApples);
+        if (curBinId == -1 && bins[tIdx].onGround && remainingApples > 0) {
             curBinId = (*binCounter)++;
             bins.push_back(AppleBin(curBinId, curLoc.x, curLoc.y));
             activeLocation = targetLoc;

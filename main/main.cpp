@@ -199,6 +199,15 @@ bool isRequestFulfilled(Coordinate loc, std::vector<AppleBin> bins)
     return false;
 }
 
+bool isHarvested(std::vector<AppleBin> bins, int index)
+{
+    for (int i = 0; i < (int) bins.size() && i < index; ++i) {
+        if (bins[i].loc.x == bins[index].loc.x && bins[i].loc.y == bins[index].loc.y)
+            return true;
+    }
+    return false;
+}
+
 void runBase(const int NUM_AGENTS, const int TIME_LIMIT)
 {
     system("rm -rf logs/base");
@@ -237,7 +246,7 @@ void runBase(const int NUM_AGENTS, const int TIME_LIMIT)
             int num = getNumWorkersAt(workers, bins[b].loc);
             int tmp1 = round(bins[b].capacity);
             int tmp2 = BIN_CAPACITY;
-            if (env.getApplesAt(bins[b].loc) > 0 && tmp1 < tmp2 && bins[b].onGround) {
+            if (env.getApplesAt(bins[b].loc) > 0 && tmp1 < tmp2 && bins[b].onGround && !isHarvested(bins, b)) {
                 bins[b].fillRate = num * PICK_RATE;
                 bins[b].capacity += bins[b].fillRate; // capacity increase for each time step = fill rate * 1
                 env.decreaseApplesAt(bins[b].loc, bins[b].fillRate);
@@ -330,7 +339,7 @@ void runAutonomous(const int NUM_AGENTS, const int NUM_LAYERS, const int TIME_LI
             int num = getNumWorkersAt(workers, bins[b].loc);
             int tmp1 = round(bins[b].capacity);
             int tmp2 = BIN_CAPACITY;
-            if (env.getApplesAt(bins[b].loc) > 0 && tmp1 < tmp2 && bins[b].onGround) {
+            if (env.getApplesAt(bins[b].loc) > 0 && tmp1 < tmp2 && bins[b].onGround && !isHarvested(bins, b)) {
                 bins[b].fillRate = num * PICK_RATE;
                 bins[b].capacity += bins[b].fillRate; // capacity increase for each time step = fill rate * 1
                 env.decreaseApplesAt(bins[b].loc, bins[b].fillRate);
@@ -376,7 +385,7 @@ void runAutonomous(const int NUM_AGENTS, const int NUM_LAYERS, const int TIME_LI
         
         for (int a = 0; a < NUM_AGENTS; ++a) {
             agents[a].selectPlan(agents, bins); // Each agent selects a plan by negotiating conflict with other agents
-            agents[a].takeAction(&binCounter, bins, requests, agents, repo, env, t);
+            agents[a].takeAction(&binCounter, bins, requests, agents, repo, env, workers, t);
         }
         
         for (int r = 0; r < (int) requests.size(); ++r) {
