@@ -1,3 +1,4 @@
+addpath('/home/rdml/ME538/finalproject/code/applethrower/logs');
 a0 = csvread('agent0.csv');
 a1 = csvread('agent1.csv');
 a2 = csvread('agent2.csv');
@@ -15,6 +16,7 @@ a(:,9:10) = a4(1:size(a4,1),2:3);
 a(:,11:12) = a5(1:size(a5,1),2:3);
 a(:,13:14) = a6(1:size(a6,1),2:3);
 a(:,15:16) = a7(1:size(a7,1),2:3);
+
 
 
 coordinates = zeros(8,2);

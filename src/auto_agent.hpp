@@ -25,9 +25,14 @@ struct AutoState {
 class AutoAgent
 {
 public:
-    AutoAgent(int i, Coordinate c, int n);
+    static const float C_H;
+    static const float C_B;
+    
+    AutoAgent(int i, Coordinate c, int n, bool learn = false);
     
     ~AutoAgent();
+    
+    int getId() { return id; }
     
     Coordinate getCurLoc() { return curLoc; }
     
@@ -49,28 +54,32 @@ public:
     
     float calcWaitTime(AppleBin ab, Orchard env, float reachTime);
     
-    float calcPathValues(int binPath[], std::vector<AppleBin> bins, Orchard env);
+    float calcPathValues(int binPath[], std::vector<AppleBin> bins, std::vector<AutoAgent> agents, Orchard env, 
+        std::vector<Worker> workers);
     
-    void makePlans(std::vector<AutoAgent> agents, std::vector<AppleBin> bins, Orchard env);
+    void makePlans(std::vector<AutoAgent> agents, std::vector<AppleBin> bins, Orchard env, std::vector<Worker> workers);
     
     void selectPlan(std::vector<AutoAgent> &agents, std::vector<AppleBin> bins);
     
     int getStateIndex(AutoState s);
     
-    void removeLocationRequest(Coordinate loc, std::vector<Coordinate> &locRequests);
+    void removeLocationRequest(Coordinate loc, std::vector<LocationRequest> &requests);
     
-    Coordinate selectClosestLocationRequest(Coordinate loc, std::vector<Coordinate> locRequests);
+    Coordinate selectClosestLocationRequest(Coordinate loc, std::vector<LocationRequest> requests, 
+        std::vector<AutoAgent> agents, std::vector<AppleBin> bins);
     
-    Coordinate selectLocationRequest(std::vector<Coordinate> locRequests, AppleBin ab, int *stateIndex);
+    Coordinate selectLocationRequest(std::vector<LocationRequest> requests, AppleBin ab, std::vector<AutoAgent> agents, 
+        int *stateIndex, std::vector<AppleBin> bins);
     
     void move(Coordinate loc, std::vector<AppleBin> &bins, int index);
     
-    void takeAction(int *binCounter, std::vector<AppleBin> &bins, std::vector<Coordinate> &locRequests, 
-        std::vector<AppleBin> &repo, Orchard env);
+    void takeAction(int *binCounter, std::vector<AppleBin> &bins, std::vector<LocationRequest> &requests, 
+        std::vector<AutoAgent> &agents, std::vector<AppleBin> &repo, Orchard env, int curTime);
     
 private:
     int id;
     int numLayers;
+    bool useLearning;
     Coordinate curLoc;
     int curBinId;
     int targetBinId;
@@ -80,12 +89,29 @@ private:
     int activeStateIndex;
     std::vector<Plan> plans;
     static std::vector<AutoState> states;
+    int lastDecisionTime;
+    Coordinate lastDecisionLoc;
+    Coordinate lastActiveLoc;
+    float binWaitTime;
+    float humanWaitTime;
+    
+    Coordinate getCarrierDestination(AppleBin ab, std::vector<AutoAgent> agents);
+    
+    int countWorkersAt(Coordinate loc, std::vector<Worker> workers);
     
     void removePlan(int binId);
     
     bool areSameStates(AutoState s1, AutoState s2);
     
+    bool isLocationServed(Coordinate loc, std::vector<AutoAgent> agents, std::vector<AppleBin> bins);
+    
+    bool hasBin(Coordinate loc, std::vector<AppleBin> bins);
+    
     bool isLocationValid(Coordinate l);
+    
+    int getRequestTime(Coordinate loc, std::vector<LocationRequest> requests);
+    
+    float getCFReward(std::vector<LocationRequest> requests, AppleBin ab);
     
     AppleBin copyBin(AppleBin ab);
 };

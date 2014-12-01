@@ -5,8 +5,14 @@ struct Coordinate
 {
     int x;
     int y;
-    Coordinate() : x(0), y(0) {}
-    Coordinate(int p, int q) : x(p), y(q) {}
+    Coordinate(int p = 0, int q = 0) : x(p), y(q) {}
+};
+
+struct LocationRequest
+{
+    Coordinate loc;
+    int regisTime;
+    LocationRequest(Coordinate l, int r = -1) : loc(l), regisTime(r) {}
 };
 
 struct AppleBin
@@ -16,7 +22,8 @@ struct AppleBin
     Coordinate loc;
     float fillRate;
     bool onGround;
-    AppleBin(int i, int x, int y) : id(i), loc(x, y) { capacity = 0; onGround = false; }
+    int filledTime;
+    AppleBin(int i, int x, int y) : id(i), loc(x, y) { capacity = 0; onGround = false;  filledTime = -1; }
 };
 
 struct Worker

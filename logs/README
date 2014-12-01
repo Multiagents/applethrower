@@ -1,4 +1,0 @@
-This directory stores simulation results.
-
-- logs/base contains the results of the baseline algorithm.
-- logs/auto contains the results of the autonomous agent system.
