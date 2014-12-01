@@ -48,11 +48,13 @@ public:
     
     int getBinIndexById(std::vector<AppleBin> bins, int id);
     
+    int getBinIndexByLoc(std::vector<AppleBin> bins, Coordinate loc);
+    
     std::vector<int> getIdleBins(std::vector<AutoAgent> agents, std::vector<AppleBin> bins);
     
     int getStepCount(Coordinate src, Coordinate dst);
     
-    float calcWaitTime(AppleBin ab, Orchard env, float reachTime);
+    float calcWaitTime(AppleBin ab, Orchard env, float reachTime, std::vector<AppleBin> bins);
     
     float calcPathValues(int binPath[], std::vector<AppleBin> bins, std::vector<AutoAgent> agents, Orchard env, 
         std::vector<Worker> workers);

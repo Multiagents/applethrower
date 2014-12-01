@@ -158,6 +158,9 @@ std::vector<Coordinate> initWorkerGroupsFixed(std::vector<Worker> &workers)
 {
     std::vector<Coordinate> workerGroups;
     
+    //workerGroups.push_back(Coordinate(1, 0));
+    //orkerGroups.push_back(Coordinate(3, 4));
+    
     workerGroups.push_back(Coordinate(3, 2));
     workerGroups.push_back(Coordinate(4, 3));
     
@@ -189,7 +192,7 @@ std::vector<AppleBin> initBins(std::vector<Coordinate> workerGroups, int *binCou
 bool isRequestFulfilled(Coordinate loc, std::vector<AppleBin> bins)
 {
     for (int i = 0; i < (int) bins.size(); ++i) {
-        if (bins[i].loc.x == loc.x && bins[i].loc.y == loc.y)
+        if (bins[i].onGround && bins[i].loc.x == loc.x && bins[i].loc.y == loc.y)
             return true;
     }
     return false;
@@ -407,7 +410,7 @@ void runAutonomous(const int NUM_AGENTS, const int NUM_LAYERS, const int TIME_LI
 
 int main(int argc, char **argv)
 {
-    srand(time(NULL));
+    //srand(time(NULL));
     
     int timeLimit = 10; // Default time limit
     int numAgents = DEFAULT_NUM_AGENTS;
