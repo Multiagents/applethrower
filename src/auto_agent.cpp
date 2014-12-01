@@ -6,8 +6,9 @@
 #include <climits>
 #include "auto_agent.hpp"
 
-const float AutoAgent::C_H = 0.8;
-const float AutoAgent::C_B = 0.3;
+const float AutoAgent::C_H = 0.6;
+const float AutoAgent::C_B = 0.4;
+
 std::vector<AutoState> AutoAgent::states;
 
 AutoAgent::AutoAgent(int i, Coordinate c, int n, bool learn)
@@ -231,22 +232,36 @@ int AutoAgent::getStateIndex(AutoState s)
     return -1;
 }
 
-bool AutoAgent::isLocationServed(Coordinate loc, std::vector<AutoAgent> agents)
+bool AutoAgent::hasBin(Coordinate loc, std::vector<AppleBin> bins)
+{
+    for (int i = 0; i < (int) bins.size(); ++i) {
+        if (bins[i].loc.x == loc.x && bins[i].loc.y == loc.y)
+            return true;
+    }
+    
+    return false;
+}
+
+bool AutoAgent::isLocationServed(Coordinate loc, std::vector<AutoAgent> agents, std::vector<AppleBin> bins)
 {
     for (int a = 0; a < (int) agents.size(); ++a) {
         if (agents[a].activeLocation.x == loc.x && agents[a].activeLocation.y == loc.y)
+            return true;
+        if (agents[a].targetLoc.x == loc.x && agents[a].targetLoc.y == loc.y)
+            return true;
+        if (hasBin(loc, bins))
             return true;
     }
     return false;
 }
 
 Coordinate AutoAgent::selectClosestLocationRequest(Coordinate loc, std::vector<LocationRequest> requests, 
-    std::vector<AutoAgent> agents)
+    std::vector<AutoAgent> agents, std::vector<AppleBin> bins)
 {
     int minIdx = -1;
     int minStep = INT_MAX;
     for (int i = 0; i < (int) requests.size(); ++i) {
-        if (isLocationServed(requests[i].loc, agents))
+        if (isLocationServed(requests[i].loc, agents, bins))
             continue;
         int tmp = getStepCount(loc, requests[i].loc);
         if (tmp < minStep) {
@@ -263,7 +278,7 @@ Coordinate AutoAgent::selectClosestLocationRequest(Coordinate loc, std::vector<L
 }
 
 Coordinate AutoAgent::selectLocationRequest(std::vector<LocationRequest> requests, AppleBin ab, 
-    std::vector<AutoAgent> agents, int *stateIndex)
+    std::vector<AutoAgent> agents, int *stateIndex, std::vector<AppleBin> bins)
 {
     if (requests.size() == 0)
         return Coordinate(-1, -1);
@@ -271,7 +286,7 @@ Coordinate AutoAgent::selectLocationRequest(std::vector<LocationRequest> request
     std::vector<int> tmpIndexes;
     std::vector<AutoState> tmpStates;
     for (int i = 0; i < (int) requests.size(); ++i) {
-        if (isLocationServed(requests[i].loc, agents))
+        if (isLocationServed(requests[i].loc, agents, bins))
             continue;
         int binSC = (targetBinId == -1) ? 0 : getStepCount(curLoc, targetLoc);
         int locSC = getStepCount(curLoc, requests[i].loc);
@@ -404,9 +419,9 @@ void AutoAgent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::ve
     
     if (activeStateIndex == -1 && curLoc.x == 0 && curBinId == -1) {
         if (useLearning)
-            activeLocation = selectLocationRequest(requests, bins[tIdx], agents, &activeStateIndex);
+            activeLocation = selectLocationRequest(requests, bins[tIdx], agents, &activeStateIndex, bins);
         else
-            activeLocation = selectClosestLocationRequest(bins[tIdx].loc, requests, agents);
+            activeLocation = selectClosestLocationRequest(bins[tIdx].loc, requests, agents, bins);
         printf("A%d selects location request (%d,%d).\n", id, activeLocation.x, activeLocation.y);
         // save history for calculating reward
         lastDecisionTime = curTime;
