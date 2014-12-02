@@ -158,17 +158,26 @@ std::vector<Coordinate> initWorkerGroupsFixed(std::vector<Worker> &workers, int 
 {
     std::vector<Coordinate> workerGroups;
     
-    if (eps == 1) {
+    //if (eps == 0) {
         workerGroups.push_back(Coordinate(1, 0));
         workerGroups.push_back(Coordinate(3, 4));
+        workerGroups.push_back(Coordinate(5, 1));
+        workerGroups.push_back(Coordinate(2, 3));
+        
         // Register workers' locations
-        for (int i = 0; i < 5; ++i)
+        for (int i = 0; i < 5; ++i) {
             workers[i].loc = workerGroups[0];
-        for (int i = 5; i < 10; ++i)
+        }
+        for (int i = 5; i < 10; ++i) {
             workers[i].loc = workerGroups[1];
-    } /*else if (eps == 2) {
-    
-    }*/ else {
+        }
+        for (int i = 10; i < 15; ++i) { 
+            workers[i].loc = workerGroups[2];
+        }
+        for (int i = 15; i < 20; ++i) {
+            workers[i].loc = workerGroups[3];
+        }
+    /*} else {
         workerGroups.push_back(Coordinate(3, 2));
         workerGroups.push_back(Coordinate(4, 3));
         // Register workers' locations
@@ -176,7 +185,7 @@ std::vector<Coordinate> initWorkerGroupsFixed(std::vector<Worker> &workers, int 
             workers[i].loc = workerGroups[0];
         for (int i = 5; i < 10; ++i)
             workers[i].loc = workerGroups[1];
-    }
+    }*/
     
     return workerGroups;
 }
@@ -185,8 +194,9 @@ std::vector<AppleBin> initBins(std::vector<Coordinate> workerGroups, int *binCou
 {
     std::vector<AppleBin> bins;
     
-    for (int i = 0; i < (int) workerGroups.size(); ++i)
+    for (int i = 0; i < (int) workerGroups.size(); ++i) {
         bins.push_back(AppleBin((*binCounter)++, workerGroups[i].x, workerGroups[i].y));
+    }
     
     printf("Initial bin locations:\n");
     for (int b = 0; b < (int) bins.size(); ++b) {
@@ -209,7 +219,7 @@ bool isRequestFulfilled(Coordinate loc, std::vector<AppleBin> bins)
 bool isHarvested(std::vector<AppleBin> bins, int index)
 {
     for (int i = 0; i < (int) bins.size() && i < index; ++i) {
-        if (bins[i].loc.x == bins[index].loc.x && bins[i].loc.y == bins[index].loc.y)
+        if (bins[i].loc.x == bins[index].loc.x && bins[i].loc.y == bins[index].loc.y && bins[i].onGround)
             return true;
     }
     return false;
@@ -255,13 +265,16 @@ void runBase(const int NUM_AGENTS, const int TIME_LIMIT)
             int tmp2 = BIN_CAPACITY;
             if (env.getApplesAt(bins[b].loc) > 0 && tmp1 < tmp2 && bins[b].onGround && !isHarvested(bins, b)) {
                 bins[b].fillRate = num * PICK_RATE;
-                bins[b].capacity += bins[b].fillRate; // capacity increase for each time step = fill rate * 1
-                env.decreaseApplesAt(bins[b].loc, bins[b].fillRate);
+                float remCap = BIN_CAPACITY - bins[b].capacity;
+                float harvestedApples = (bins[b].fillRate > remCap) ? remCap : bins[b].fillRate;
+                bins[b].capacity += harvestedApples;
+                env.decreaseApplesAt(bins[b].loc, harvestedApples);
                 if (bins[b].capacity > BIN_CAPACITY)
                     bins[b].capacity = BIN_CAPACITY;
             }
-            printf("[%d] B%d (%d,%d) capacity: %4.2f. (# workers: %d)\n", t, bins[b].id, bins[b].loc.x, 
-                bins[b].loc.y, bins[b].capacity, num);
+            const char *str = (bins[b].onGround) ? "on ground" : "carried";
+            printf("[%d] B%d (%d,%d) %s, capacity: %4.2f. (# workers: %d)\n", t, bins[b].id, bins[b].loc.x, 
+                bins[b].loc.y, str, bins[b].capacity, num);
             if (bins[b].onGround) {
                 printf("[%d] Remaining apples at (%d,%d): %4.2f\n", t, bins[b].loc.x, bins[b].loc.y, 
                     env.getApplesAt(bins[b].loc));
@@ -356,9 +369,15 @@ void runAutonomous(const int NUM_AGENTS, const int NUM_LAYERS, const int TIME_LI
                 int tmp1 = round(bins[b].capacity);
                 int tmp2 = BIN_CAPACITY;
                 if (env.getApplesAt(bins[b].loc) > 0 && tmp1 < tmp2 && bins[b].onGround && !isHarvested(bins, b)) {
+                    //printf("[%d] Location (%d,%d) harvested for B%d\n", t, bins[b].loc.x, bins[b].loc.y, bins[b].id);
                     bins[b].fillRate = num * PICK_RATE;
+                    float remCap = BIN_CAPACITY - bins[b].capacity;
+                    float harvestedApples = (bins[b].fillRate > remCap) ? remCap : bins[b].fillRate;
+                    bins[b].capacity += harvestedApples;
+                    env.decreaseApplesAt(bins[b].loc, harvestedApples);
+                    /*bins[b].fillRate = num * PICK_RATE;
                     bins[b].capacity += bins[b].fillRate; // capacity increase for each time step = fill rate * 1
-                    env.decreaseApplesAt(bins[b].loc, bins[b].fillRate);
+                    env.decreaseApplesAt(bins[b].loc, bins[b].fillRate);*/
                     if (bins[b].capacity >= BIN_CAPACITY) {
                         bins[b].capacity = BIN_CAPACITY;
                         bins[b].filledTime = t;
