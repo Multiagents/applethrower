@@ -32,7 +32,12 @@ void Orchard::decreaseApplesAt(Coordinate loc, float fillRate)
 {
     if (loc.x < 0 || loc.x >= ORCH_COLS || loc.y < 0 || loc.y >= ORCH_ROWS)
         return;
-    appleDist[loc.y][loc.x] = (fillRate >= appleDist[loc.y][loc.x]) ? 0 : appleDist[loc.y][loc.x] - fillRate;
+    if (appleDist[loc.y][loc.x] <= BIN_CAPACITY) {
+        appleDist[loc.y][loc.x] = (fillRate >= appleDist[loc.y][loc.x]) ? 0 : appleDist[loc.y][loc.x] - fillRate;
+    } else {
+        appleDist[loc.y][loc.x] = (fillRate >= BIN_CAPACITY) ? appleDist[loc.y][loc.x] - BIN_CAPACITY : appleDist[loc.y][loc.x] - fillRate;
+    }
+
 }
 
 double Orchard::getTotalApples(int *count)
