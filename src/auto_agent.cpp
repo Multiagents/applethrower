@@ -473,10 +473,13 @@ void AutoAgent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::ve
     if (tIdx != -1 && curLoc.x == 0) {
         float remainingApples = env.getApplesAt(bins[tIdx].loc);
         float fillRate = countWorkersAt(targetLoc, workers) * PICK_RATE;
+        float remainingCap = BIN_CAPACITY - bins[tIdx].capacity;
         float harvestedApples = fillRate * (getStepCount(curLoc, bins[tIdx].loc) + 1);
+        harvestedApples = (harvestedApples > remainingCap) ? remainingCap : harvestedApples;
+        //printf("ra: %4.2f, fr: %4.2f, ha: %4.2f\n", remainingApples, fillRate, harvestedApples);
         if (bins[tIdx].onGround)
             remainingApples -= harvestedApples;
-        //printf("rem apples at (%d,%d) = %4.2f\n", bins[tIdx].loc.x, bins[tIdx].loc.y, remainingApples);
+        printf("rem apples at (%d,%d) = %4.2f\n", bins[tIdx].loc.x, bins[tIdx].loc.y, remainingApples);
         if (curBinId == -1 && bins[tIdx].onGround && remainingApples > 0) {
             curBinId = (*binCounter)++;
             bins.push_back(AppleBin(curBinId, curLoc.x, curLoc.y));

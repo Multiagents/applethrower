@@ -23,7 +23,7 @@ struct AppleBin
     float fillRate;
     bool onGround;
     int filledTime;
-    AppleBin(int i, int x, int y) : id(i), loc(x, y) { capacity = 0; onGround = false;  filledTime = -1; }
+    AppleBin(int i, int x, int y) : id(i), loc(x, y) { capacity = 0; fillRate = 1; onGround = false;  filledTime = -1; }
 };
 
 struct Worker
