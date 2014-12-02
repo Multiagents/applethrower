@@ -34,6 +34,8 @@ public:
     
     int getId() { return id; }
     
+    void setCurLoc(Coordinate loc) { curLoc = loc; }
+    
     Coordinate getCurLoc() { return curLoc; }
     
     Coordinate getTargetLoc() { return targetLoc; }
@@ -79,6 +81,8 @@ public:
         std::vector<AutoAgent> &agents, std::vector<AppleBin> &repo, Orchard env, std::vector<Worker> workers, 
         int curTime);
     
+    int getNumOfStates() { return (int) states.size(); }
+    
 private:
     int id;
     int numLayers;
@@ -90,8 +94,8 @@ private:
     Plan activePlan;
     Coordinate activeLocation;
     int activeStateIndex;
-    std::vector<Plan> plans;
     static std::vector<AutoState> states;
+    std::vector<Plan> plans;
     int lastDecisionTime;
     Coordinate lastDecisionLoc;
     Coordinate lastActiveLoc;
