@@ -68,7 +68,7 @@ std::vector<int> AutoAgent::getIdleBins(std::vector<AutoAgent> agents, std::vect
         if (bIdx != -1)
             idleBins[bIdx] = -1;
         int stepCount = getStepCount(agents[a].curLoc, agents[a].activeLocation);
-        if (bIdx != -1 && stepCount == 0 && agents[a].activeLocation.x != 0 && agents[a].activeLocation.x != -1) {
+        if (bIdx != -1 && stepCount <= AGENT_SPEED_H && agents[a].activeLocation.x != 0 && agents[a].activeLocation.x != -1) {
             idleBins[bIdx] = bIdx;
         }
     }
@@ -321,12 +321,13 @@ Coordinate AutoAgent::selectClosestLocationRequest(Coordinate loc, std::vector<L
             continue;
         }
         
+        //int tmp = getStepCount(loc, requests[i].loc);
+        
         int tmp = getStepCount(curLoc, requests[i].loc);
         if (loc.x != -1 && loc.y != -1)
             tmp += getStepCount(loc, requests[i].loc) + getStepCount(loc, Coordinate(0, loc.y));
         else
             tmp += getStepCount(curLoc, requests[i].loc);
-        
         if (tmp < minStep) {
             minIdx = i;
             minStep = tmp;
@@ -469,6 +470,8 @@ float AutoAgent::getCFReward(std::vector<LocationRequest> requests, AppleBin ab)
 void AutoAgent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::vector<LocationRequest> &requests, 
     std::vector<AutoAgent> &agents, std::vector<AppleBin> &repo, Orchard env, std::vector<Worker> workers, int curTime)
 {
+    bool moved = false;
+    
     int tIdx = getBinIndexById(bins, targetBinId);
     if (tIdx != -1 && curLoc.x == 0) {
         float remainingApples = env.getApplesAt(bins[tIdx].loc);
@@ -476,15 +479,13 @@ void AutoAgent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::ve
         float remainingCap = BIN_CAPACITY - bins[tIdx].capacity;
         float harvestedApples = fillRate * (getStepCount(curLoc, bins[tIdx].loc) + 1);
         harvestedApples = (harvestedApples > remainingCap) ? remainingCap : harvestedApples;
-        //printf("ra: %4.2f, fr: %4.2f, ha: %4.2f\n", remainingApples, fillRate, harvestedApples);
         if (bins[tIdx].onGround)
             remainingApples -= harvestedApples;
-        printf("rem apples at (%d,%d) = %4.2f\n", bins[tIdx].loc.x, bins[tIdx].loc.y, remainingApples);
         if (curBinId == -1 && bins[tIdx].onGround && remainingApples > 0) {
             curBinId = (*binCounter)++;
             bins.push_back(AppleBin(curBinId, curLoc.x, curLoc.y));
             activeLocation = targetLoc;
-            printf("A%d takes a new bin B%d to (%d,%d). targetBin: %d, tIdx: %d (1)\n", id, curBinId, 
+            printf("A%d takes a new bin B%d to (%d,%d). targetBin: %d, tIdx: %d (*)\n", id, curBinId, 
                 activeLocation.x, activeLocation.y, targetBinId, tIdx);
             // save history for calculating reward
             lastDecisionTime = curTime;
@@ -509,10 +510,17 @@ void AutoAgent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::ve
         if (curBinId == -1 && curLoc.x == 0) { // get a new bin
             curBinId = (*binCounter)++;
             bins.push_back(AppleBin(curBinId, curLoc.x, curLoc.y));
-            printf("A%d takes a new bin B%d to (%d,%d).(2)\n", id, curBinId, activeLocation.x, activeLocation.y);
+            printf("A%d takes a new bin B%d to (%d,%d). (**)\n", id, curBinId, activeLocation.x, activeLocation.y);
         }
         
         int cIdx = getBinIndexById(bins, curBinId);
+        if ( (curLoc.x != activeLocation.x || curLoc.y != activeLocation.y) && !moved) {
+            move(activeLocation, bins, cIdx);
+            printf("A%d moves to (%d,%d). Active location: (%d,%d). (+)\n", id, curLoc.x, curLoc.y, activeLocation.x, 
+                activeLocation.y);
+            moved = true;
+        }
+        
         if (curLoc.x == activeLocation.x && curLoc.y == activeLocation.y) {
             if (curBinId != -1) { // arrived at requested location; drop the new bin
                 bins[cIdx].loc = curLoc;
@@ -525,11 +533,6 @@ void AutoAgent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::ve
                 cIdx = -1;
                 activeLocation = Coordinate(-1, -1); // reset
             }
-        } else {
-            move(activeLocation, bins, cIdx);
-            printf("A%d moves to (%d,%d). Active location: (%d,%d).\n", id, curLoc.x, curLoc.y, 
-                activeLocation.x, activeLocation.y);
-            return;
         }
     }
     
@@ -551,24 +554,26 @@ void AutoAgent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::ve
                 }
                 return;
             }
-        } /*else {
-            int cIdx = getBinIndexById(bins, curBinId);
-            move(targetLoc, bins, cIdx);
-            printf("A%d moves to (%d,%d). Target location: (%d,%d).\n", id, curLoc.x, curLoc.y, targetLoc.x, targetLoc.y);
-        }*/
+        }
     } else { // no active location request and no target bin; return to repo
         targetLoc.x = 0;
-        int cIdx = getBinIndexById(bins, curBinId);
-        move(targetLoc, bins, cIdx);
-        return;
+        if (isLocationValid(targetLoc) && !moved) {
+            int cIdx = getBinIndexById(bins, curBinId);
+            move(targetLoc, bins, cIdx);
+            printf("A%d moves to (%d,%d). TargetLoc: (%d,%d). (++)\n", id, curLoc.x, curLoc.y, targetLoc.x, targetLoc.y);
+            moved = true;
+        }
     }
     
     if (targetBinId != -1)
         targetLoc = bins[tIdx].loc;
     
     int idx = getBinIndexById(bins, curBinId);
-    move(targetLoc, bins, idx);
-    printf("A%d moves to (%d,%d).\n", id, curLoc.x, curLoc.y);
+    if (isLocationValid(targetLoc) && !moved) {
+        move(targetLoc, bins, idx);
+        printf("A%d moves to (%d,%d). TargetLoc: (%d,%d). (+++)\n", id, curLoc.x, curLoc.y, targetLoc.x, targetLoc.y);
+        moved = true;
+    }
     
     if (curLoc.x == 0 && curBinId != -1 && bins[idx].capacity > 0) { // arrived at repo with full bin
         if (idx >= 0 && idx < (int) bins.size()) {
