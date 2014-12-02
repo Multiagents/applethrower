@@ -24,6 +24,7 @@ options:
     -a: number of agents. Default: 2.
     -l: number of layers (for autonomous agent). Default: 3.
     -t: time limit. Default: 10.
+    -e: number of episodes. Default: 1. (Only used while -learn flag is set.)
 
 use_learning?
     -learn: use reinforcement learning with difference rewards to select location request.
