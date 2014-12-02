@@ -258,7 +258,7 @@ void AutoAgent::selectPlan(std::vector<AutoAgent> &agents, std::vector<AppleBin>
             // Set target bin ID and location
             int idx = getBinIndexById(bins, activePlan.binId);
             targetBinId = plans[p].binId;
-            targetLoc = bins[idx].loc;
+            targetLoc = (bins[idx].onGround) ? bins[idx].loc : getCarrierDestination(bins[idx], agents);
             printf("A%d select plan: B%d at (%d,%d) (score: %4.2f).\n", id, targetBinId, targetLoc.x, targetLoc.y, 
                 activePlan.value);
             // Broadcast to other agents that the bin is taken
@@ -291,7 +291,7 @@ int AutoAgent::getStateIndex(AutoState s)
 bool AutoAgent::hasBin(Coordinate loc, std::vector<AppleBin> bins)
 {
     for (int i = 0; i < (int) bins.size(); ++i) {
-        if (bins[i].loc.x == loc.x && bins[i].loc.y == loc.y)
+        if (bins[i].loc.x == loc.x && bins[i].loc.y == loc.y && bins[i].onGround)
             return true;
     }
     
@@ -301,12 +301,18 @@ bool AutoAgent::hasBin(Coordinate loc, std::vector<AppleBin> bins)
 bool AutoAgent::isLocationServed(Coordinate loc, std::vector<AutoAgent> agents, std::vector<AppleBin> bins)
 {
     for (int a = 0; a < (int) agents.size(); ++a) {
-        if (agents[a].activeLocation.x == loc.x && agents[a].activeLocation.y == loc.y)
+        if (agents[a].activeLocation.x == loc.x && agents[a].activeLocation.y == loc.y) {
+            printf("[A%d] A%d activeLoc: (%d,%d)\n", id, agents[a].id, activeLocation.x, activeLocation.y);
             return true;
-        if (agents[a].targetLoc.x == loc.x && agents[a].targetLoc.y == loc.y)
+        }
+        if (agents[a].targetLoc.x == loc.x && agents[a].targetLoc.y == loc.y) {
+            printf("[A%d] A%d targetLoc: (%d,%d)\n", id, agents[a].id, targetLoc.x, targetLoc.y);
             return true;
-        if (hasBin(loc, bins))
+        }
+        if (hasBin(loc, bins)) {
+            printf("[A%d] sees a bin at (%d,%d)\n", id, loc.x, loc.y);
             return true;
+        }
     }
     return false;
 }
@@ -478,15 +484,17 @@ void AutoAgent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::ve
         float fillRate = countWorkersAt(targetLoc, workers) * PICK_RATE;
         float remainingCap = BIN_CAPACITY - bins[tIdx].capacity;
         float harvestedApples = fillRate * (getStepCount(curLoc, bins[tIdx].loc) + 1);
+        printf("ra: %4.2f, fr: %4.2f, rc: %4.2f, ha: %4.2f\n", remainingApples, fillRate, remainingCap, harvestedApples);
         harvestedApples = (harvestedApples > remainingCap) ? remainingCap : harvestedApples;
         if (bins[tIdx].onGround)
             remainingApples -= harvestedApples;
+        printf("ha: %4.2f, ra: %4.2f\n", harvestedApples, remainingApples);
         if (curBinId == -1 && bins[tIdx].onGround && remainingApples > 0) {
             curBinId = (*binCounter)++;
             bins.push_back(AppleBin(curBinId, curLoc.x, curLoc.y));
             activeLocation = targetLoc;
-            printf("A%d takes a new bin B%d to (%d,%d). targetBin: %d, tIdx: %d (*)\n", id, curBinId, 
-                activeLocation.x, activeLocation.y, targetBinId, tIdx);
+            printf("A%d takes a new bin B%d to (%d,%d). targetBin: %d, tIdx: %d, TargetLoc: (%d,%d) (*)\n", id, curBinId, 
+                activeLocation.x, activeLocation.y, targetBinId, tIdx, targetLoc.x, targetLoc.y);
             // save history for calculating reward
             lastDecisionTime = curTime;
             lastDecisionLoc = curLoc;
@@ -506,7 +514,7 @@ void AutoAgent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::ve
         lastActiveLoc = activeLocation;
     }
     
-    if (isLocationValid(activeLocation)) {
+    if (isLocationValid(activeLocation) && !(activeLocation.x == targetLoc.x && activeLocation.y == targetLoc.y)) {
         if (curBinId == -1 && curLoc.x == 0) { // get a new bin
             curBinId = (*binCounter)++;
             bins.push_back(AppleBin(curBinId, curLoc.x, curLoc.y));
@@ -539,6 +547,19 @@ void AutoAgent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::ve
     if (isLocationValid(targetLoc)) {
         if (curLoc.x == targetLoc.x && curLoc.y == targetLoc.y) { // arrived at target bin location
             if (round(bins[tIdx].capacity) >= BIN_CAPACITY) { // bin is full; pick it up
+                // Drop the new bin
+                int nIdx = getBinIndexById(bins, curBinId);
+                if (curLoc.x == activeLocation.x && curLoc.y == activeLocation.y && curBinId != -1) {
+                    bins[nIdx].loc = curLoc;
+                    bins[nIdx].onGround = true;
+                    printf("A%d(%d,%d) drops B%d at (%d,%d).\n", id, curLoc.x, curLoc.y, bins[nIdx].id, 
+                        bins[nIdx].loc.x, bins[nIdx].loc.y);
+                    int regisTime = getRequestTime(activeLocation, requests);
+                    humanWaitTime = (regisTime == -1) ? 0 : curTime - regisTime;
+                    curBinId = -1;
+                    activeLocation = Coordinate(-1, -1); // reset
+                }
+                // Then, pick up the full bin
                 curBinId = targetBinId;
                 int cIdx = getBinIndexById(bins, curBinId);
                 bins[cIdx].onGround = false;
@@ -549,8 +570,8 @@ void AutoAgent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::ve
                 binWaitTime = (bins[cIdx].filledTime == -1) ? 0 : curTime - bins[cIdx].filledTime;
             } else { // bin is not full yet; wait
                 if (targetBinId != -1) {
-                    printf("A%d(%d,%d) waits for B%d(%d,%d) to be full.\n", id, curLoc.x, curLoc.y, targetBinId, 
-                        bins[tIdx].loc.x, bins[tIdx].loc.y);
+                    printf("A%d(%d,%d) waits for B%d(%d,%d) to be full. TargetLoc: (%d,%d).\n", id, curLoc.x, curLoc.y, 
+                        targetBinId, bins[tIdx].loc.x, bins[tIdx].loc.y, targetLoc.x, targetLoc.y);
                 }
                 return;
             }
@@ -564,9 +585,6 @@ void AutoAgent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::ve
             moved = true;
         }
     }
-    
-    if (targetBinId != -1)
-        targetLoc = bins[tIdx].loc;
     
     int idx = getBinIndexById(bins, curBinId);
     if (isLocationValid(targetLoc) && !moved) {
