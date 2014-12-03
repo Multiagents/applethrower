@@ -83,6 +83,8 @@ public:
     
     int getNumOfStates() { return (int) states.size(); }
     
+    std::vector<AutoState> getStates() { return states; }
+    
 private:
     int id;
     int numLayers;
@@ -95,6 +97,7 @@ private:
     Coordinate activeLocation;
     int activeStateIndex;
     static std::vector<AutoState> states;
+    std::vector<AppleBin> binsHistory;
     std::vector<Plan> plans;
     int lastDecisionTime;
     Coordinate lastDecisionLoc;
@@ -118,7 +121,9 @@ private:
     
     int getRequestTime(Coordinate loc, std::vector<LocationRequest> requests);
     
-    float getCFReward(std::vector<LocationRequest> requests, AppleBin ab);
+    float getCFRewardAvg(std::vector<LocationRequest> requests, AppleBin ab);
+    
+    float getCFRewardClosest(std::vector<LocationRequest> requests, AppleBin ab);
     
     AppleBin copyBin(AppleBin ab);
 };
