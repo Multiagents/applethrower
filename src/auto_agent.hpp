@@ -83,6 +83,8 @@ public:
     
     int getNumOfStates() { return (int) states.size(); }
     
+    std::vector<AutoState> getStates() { return states; }
+    
 private:
     int id;
     int numLayers;

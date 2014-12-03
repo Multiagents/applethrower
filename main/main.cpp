@@ -158,34 +158,38 @@ std::vector<Coordinate> initWorkerGroupsFixed(std::vector<Worker> &workers, int 
 {
     std::vector<Coordinate> workerGroups;
     
-    //if (eps == 0) {
+    if (eps == 1) {
         workerGroups.push_back(Coordinate(1, 0));
         workerGroups.push_back(Coordinate(3, 4));
         workerGroups.push_back(Coordinate(5, 1));
         workerGroups.push_back(Coordinate(2, 3));
-        
-        // Register workers' locations
-        for (int i = 0; i < 5; ++i) {
-            workers[i].loc = workerGroups[0];
-        }
-        for (int i = 5; i < 10; ++i) {
-            workers[i].loc = workerGroups[1];
-        }
-        for (int i = 10; i < 15; ++i) { 
-            workers[i].loc = workerGroups[2];
-        }
-        for (int i = 15; i < 20; ++i) {
-            workers[i].loc = workerGroups[3];
-        }
-    /*} else {
-        workerGroups.push_back(Coordinate(3, 2));
-        workerGroups.push_back(Coordinate(4, 3));
         // Register workers' locations
         for (int i = 0; i < 5; ++i)
             workers[i].loc = workerGroups[0];
         for (int i = 5; i < 10; ++i)
             workers[i].loc = workerGroups[1];
-    }*/
+        for (int i = 10; i < 15; ++i)
+            workers[i].loc = workerGroups[2];
+        for (int i = 15; i < 20; ++i)
+            workers[i].loc = workerGroups[3];
+    } else if (eps == 2) {
+    
+    } else {
+        // Training at Eps = 0 AND Testing
+        workerGroups.push_back(Coordinate(3, 2));
+        workerGroups.push_back(Coordinate(4, 3));
+        workerGroups.push_back(Coordinate(6, 2));
+        workerGroups.push_back(Coordinate(1, 4));
+        // Register workers' locations
+        for (int i = 0; i < 5; ++i)
+            workers[i].loc = workerGroups[0];
+        for (int i = 5; i < 10; ++i)
+            workers[i].loc = workerGroups[1];
+        for (int i = 10; i < 15; ++i)
+            workers[i].loc = workerGroups[2];
+        for (int i = 15; i < 20; ++i)
+            workers[i].loc = workerGroups[3];
+    }
     
     return workerGroups;
 }
@@ -335,14 +339,16 @@ void runAutonomous(const int NUM_AGENTS, const int NUM_LAYERS, const int TIME_LI
     
     // Prepare log files
     FILE *repoFile = fopen("logs/auto/repo.csv", "w");
+    FILE *stateFile = fopen("logs/auto/states.txt", "w");
     
     /* Run simulator */
-    for (int eps = 0; eps < MAX_EPS; ++eps) {
-        printf("+++++++++++++++ EPS = %d +++++++++++++++\n", eps);
+    for (int eps = 0; eps < MAX_EPS + 1; ++eps) {
+        int tmpEps = (eps == MAX_EPS) ? 0 : eps;
+        printf("+++++++++++++++ EPS = %d +++++++++++++++\n", tmpEps);
         /* Workers and bins initialization */
         int binCounter = 0;
         std::vector<Worker> workers = initWorkers();
-        std::vector<Coordinate> workerGroups = initWorkerGroupsFixed(workers, eps);
+        std::vector<Coordinate> workerGroups = initWorkerGroupsFixed(workers, tmpEps);
         std::vector<AppleBin> bins = initBins(workerGroups, &binCounter);
         /* Agents initialization */
         std::vector<AutoAgent> agents;
@@ -446,10 +452,18 @@ void runAutonomous(const int NUM_AGENTS, const int NUM_LAYERS, const int TIME_LI
                 break;
             }
         }
-        printf("+++++++++++++++ End of EPS = %d +++++++++++++++\n", eps);
+        printf("+++++++++++++++ End of EPS = %d +++++++++++++++\n", tmpEps);
         printf("Total bins: %d\n", (int) repo.size());
         int cellCount = 0;
         printf("Remaining apples in orchard: %4.2f in %d locations\n", env.getTotalApples(&cellCount), cellCount);
+        
+        std::vector<AutoState> states = agents[0].getStates();
+        fprintf(stateFile, "EPS = %d\n", tmpEps);
+        for (int s = 0; s < (int) states.size(); ++s) {
+            fprintf(stateFile, "%d,%4.2f\n", s, states[s].reward);
+        }
+        fprintf(stateFile, "\n");
+        
         // reset
         workers.clear();
         workerGroups.clear();
