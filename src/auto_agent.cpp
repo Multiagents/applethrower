@@ -480,20 +480,56 @@ int AutoAgent::getRequestTime(Coordinate loc, std::vector<LocationRequest> reque
     return -1;
 }
 
-float AutoAgent::getCFReward(std::vector<LocationRequest> requests, AppleBin ab)
+float AutoAgent::getCFRewardAvg(std::vector<LocationRequest> requests, AppleBin ab)
 {
+    // Average Counterfactual
     float sum = 0;
     float count = 0;
     for (int i = 0; i < (int) requests.size(); ++i) {
-        if (requests[i].regisTime > lastDecisionTime)
+        if ((requests[i].loc.x == lastActiveLoc.x && requests[i].loc.y == lastActiveLoc.y)
+            || requests[i].regisTime > lastDecisionTime)
             continue;
         float hTime = ((float) getStepCount(lastDecisionLoc, requests[i].loc)) / AGENT_SPEED_H;
         float bTime = hTime + ((float) getStepCount(requests[i].loc, ab.loc)) / AGENT_SPEED_H;
+        float bFullTime = (BIN_CAPACITY - ab.capacity) / ab.fillRate;
+        bTime -= bFullTime;
         sum += -(hTime * C_H + bTime + C_B);
         count++;
     }
     
+    if (count == 0)
+        return 0;
     return sum / count;
+}
+
+float AutoAgent::getCFRewardClosest(std::vector<LocationRequest> requests, AppleBin ab)
+{
+    // Closest Location Request to the Latest Target Bin
+    int minIdx = -1;
+    float minDist = FLT_MAX;
+    float reward = 0;
+    
+    for (int i = 0; i < (int) requests.size(); ++i) {
+        if ((requests[i].loc.x == lastActiveLoc.x && requests[i].loc.y == lastActiveLoc.y)
+            || requests[i].regisTime > lastDecisionTime)
+            continue;
+        float dist = getStepCount(requests[i].loc, ab.loc);
+        if (dist < minDist) {
+            minIdx = i;
+            minDist = dist;
+        }
+    }
+    
+    if (minIdx == -1)
+        return 0;
+    
+    float hTime = ((float) getStepCount(lastDecisionLoc, requests[minIdx].loc)) / AGENT_SPEED_H;
+    float bTime = hTime + ((float) getStepCount(requests[minIdx].loc, ab.loc)) / AGENT_SPEED_H;
+    float bFullTime = (BIN_CAPACITY - ab.capacity) / ab.fillRate;
+    bTime -= bFullTime;
+    reward = -(hTime * C_H + bTime + C_B);
+    
+    return reward;
 }
 
 void AutoAgent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::vector<LocationRequest> &requests, 
@@ -535,6 +571,8 @@ void AutoAgent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::ve
         lastDecisionTime = curTime;
         lastDecisionLoc = curLoc;
         lastActiveLoc = activeLocation;
+        binsHistory.clear();
+        binsHistory = bins;
     }
     
     if (isLocationValid(activeLocation) && !(activeLocation.x == targetLoc.x && activeLocation.y == targetLoc.y)) {
@@ -622,7 +660,8 @@ void AutoAgent::takeAction(int *binCounter, std::vector<AppleBin> &bins, std::ve
         if (idx >= 0 && idx < (int) bins.size()) {
             if (activeStateIndex != -1) { // Observe reward
                 float rA = -(humanWaitTime * C_H + binWaitTime * C_B);
-                float rCF = getCFReward(requests, bins[idx]);
+                float rCF = getCFRewardAvg(requests, binsHistory[idx]);
+                //float rCF = getCFRewardClosest(requests, binsHistory[idx]);
                 float reward = rA - rCF;
                 states[activeStateIndex].reward += reward; 
             }
