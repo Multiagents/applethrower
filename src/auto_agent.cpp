@@ -157,19 +157,16 @@ float AutoAgent::calcPathValues(int binPath[], std::vector<AppleBin> bins, std::
     for (int j = 0; j < numLayers; ++j) {
         if (binPath[j] == -1)
             break;
-        
         AppleBin ab = bins[binPath[j]];
         if (!ab.onGround) {
             ab.loc = getCarrierDestination(ab, agents);
             ab.fillRate = countWorkersAt(ab.loc, workers) * PICK_RATE;
         }
-        //printf("[A%d] B%d, (%d,%d) fillRate: %4.2f\n", id, ab.id, ab.loc.x, ab.loc.y, ab.fillRate);
         
         float prevTime = (j > 0) ? times[j - 1] : 0;
         float reachTime = ((float) getStepCount(curLoc, ab.loc)) / AGENT_SPEED_H;
         float waitTime = calcWaitTime(ab, env, reachTime, bins);
         float returnTime = (ab.loc.x - 0) / AGENT_SPEED_L; // bin.loc.x - 0 (repo at column 0)
-        //printf("[A%d] B%d, reach: %4.2f, wait: %4.2f, return: %4.2f\n", id, ab.id, reachTime, waitTime, returnTime);
         times[j] = prevTime + reachTime + waitTime + returnTime;
     }
     
@@ -187,16 +184,19 @@ bool planComparator(Plan p1, Plan p2)
     return p1.value < p2.value;
 }
 
-/*bool AutoAgent::isCombinationExist(int numBins, int numLayers, int binSeqs[numBins][numLayers], int index, std::vector<AppleBin> bins)
+int factorial(int n)
 {
-    for (int i = 0; i < index; ++i) {
-        for (int j = 0; j < numLayers; ++j) {
-            if (binSeqs[i][j] == bins[j])
-                return true;
-        }
+    return (n == 1 || n == 0) ? 1 : factorial(n - 1) * n;
+}
+
+int AutoAgent::getPlanIndex(std::vector<Plan> plans, int id)
+{
+    for (int i = 0; i < (int) plans.size(); ++i) {
+        if (plans[i].binId == id)
+            return i;
     }
-    return false;
-}*/
+    return -1;
+}
 
 void AutoAgent::makePlans(std::vector<AutoAgent> agents, std::vector<AppleBin> bins, Orchard env, 
     std::vector<Worker> workers)
@@ -211,44 +211,66 @@ void AutoAgent::makePlans(std::vector<AutoAgent> agents, std::vector<AppleBin> b
         return;
     
     int numIdleBins = idleBins.size();
-    int binSeqs[numIdleBins][numLayers];
+    long numSeqs = factorial(numIdleBins);
+    int binSeqs[numSeqs][numLayers];
     
-    for (int i = 0; i < numIdleBins; ++i)
-        for (int j = 0; j < numLayers; ++j)
+    for (long i = 0; i < numSeqs; ++i) {
+        for (int j = 0; j < numLayers; ++j) {
+            printf("(i,j) = (%ld,%d)\n", i, j);
             binSeqs[i][j] = -1; // Initialization
+        }
+    }
     
     // Create possible bin sequences
-    for (int i = 0; i < numIdleBins; ++i) {
+    for (long i = 0; i < numSeqs; ++i) {
         for (int j = 0; j < numLayers && j < numIdleBins; ++j) {
             bool used = false;
-            for (int ii = 0; ii < i; ++ii) {
-                for (int jj = 0; jj < numLayers; ++jj) {
-                    if (binSeqs[ii][jj] == idleBins[j])
-                        used = true;
+            for (long ii = 0; ii < i; ++ii) {
+                used = true;
+                for (int jj = 0; jj < numLayers && jj < numIdleBins; ++jj) {
+                    used = used && (binSeqs[ii][jj] == idleBins[jj]);
                 }
+                if (used)
+                    break;
             }
-            if (!used) {
+            
+            if (!used)
                 binSeqs[i][j] = idleBins[j];
-            } else {
-                --i;
-            }
         }
         std::next_permutation(idleBins.begin(), idleBins.end());
     }
     
-    for (int i = 0; i < numIdleBins; ++i)
-        plans.push_back(Plan(bins[binSeqs[i][0]].id, calcPathValues(binSeqs[i], bins, agents, env, workers)));
+    for (long i = 0; i < numSeqs; ++i) {
+        if (binSeqs[i][0] == -1)
+            continue;
+        int idx = getPlanIndex(plans, bins[binSeqs[i][0]].id);
+        if (idx != -1) {
+            float val = calcPathValues(binSeqs[i], bins, agents, env, workers);
+            if (val < plans[idx].value) {
+                plans[idx].value = val;
+            } else if (val == plans[idx].value) {
+                int stepsNew = getStepCount(curLoc, bins[binSeqs[i][0]].loc);
+                int stepsOld = getStepCount(curLoc, bins[getBinIndexById(bins, plans[idx].binId)].loc);
+                if (stepsNew < stepsOld) {
+                    plans.erase(plans.begin() + idx);
+                    plans.push_back(Plan(bins[binSeqs[i][0]].id, val));
+                }
+            }
+        } else {
+            plans.push_back(Plan(bins[binSeqs[i][0]].id, calcPathValues(binSeqs[i], bins, agents, env, workers)));
+        }
+    }
     
     std::sort(plans.begin(), plans.end(), planComparator); // sort by plan value, ascending
     
     printf("A%d plans:\n", id);
-    for (int i = 0; i < (int) plans.size(); ++i)
-        printf("P%d -> B%d, score: %f\n", i, plans[i].binId, plans[i].value);
+    for (long i = 0; i < plans.size(); ++i)
+        printf("P%ld -> B%d, score: %f\n", i, plans[i].binId, plans[i].value);
 }
 
 void AutoAgent::removePlan(int binId)
 {
-    for (int p = 0; p < (int) plans.size(); ++p) {
+    for (long p = 0; p < plans.size(); ++p) {
         if (plans[p].binId == binId) {
             plans.erase(plans.begin() + p);
             --p;
@@ -324,18 +346,12 @@ bool AutoAgent::hasBin(Coordinate loc, std::vector<AppleBin> bins)
 bool AutoAgent::isLocationServed(Coordinate loc, std::vector<AutoAgent> agents, std::vector<AppleBin> bins)
 {
     for (int a = 0; a < (int) agents.size(); ++a) {
-        if (agents[a].activeLocation.x == loc.x && agents[a].activeLocation.y == loc.y) {
-            printf("[A%d] A%d activeLoc: (%d,%d)\n", id, agents[a].id, activeLocation.x, activeLocation.y);
+        if (agents[a].activeLocation.x == loc.x && agents[a].activeLocation.y == loc.y)
             return true;
-        }
-        if (agents[a].targetLoc.x == loc.x && agents[a].targetLoc.y == loc.y) {
-            printf("[A%d] A%d targetLoc: (%d,%d)\n", id, agents[a].id, targetLoc.x, targetLoc.y);
+        if (agents[a].targetLoc.x == loc.x && agents[a].targetLoc.y == loc.y)
             return true;
-        }
-        if (hasBin(loc, bins)) {
-            printf("[A%d] sees a bin at (%d,%d)\n", id, loc.x, loc.y);
+        if (hasBin(loc, bins))
             return true;
-        }
     }
     return false;
 }

@@ -5,7 +5,7 @@ const int ORCH_ROWS          = 5;
 const int ORCH_COLS          = 10;
 
 const int DEFAULT_NUM_AGENTS = 2;
-const int NUM_WORKERS        = 20;
+const int NUM_WORKERS        = 40;
 const int MAX_BIN_PER_WORKER = 100; // The maximum number of bins that one worker can fill in one day
 const int NUM_APPLES_PER_LOC = 20;
 

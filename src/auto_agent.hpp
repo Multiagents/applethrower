@@ -109,6 +109,8 @@ private:
     
     int countWorkersAt(Coordinate loc, std::vector<Worker> workers);
     
+    int getPlanIndex(std::vector<Plan> plans, int id);
+    
     void removePlan(int binId);
     
     bool areSameStates(AutoState s1, AutoState s2);

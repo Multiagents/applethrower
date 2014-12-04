@@ -179,6 +179,10 @@ std::vector<Coordinate> initWorkerGroupsFixed(std::vector<Worker> &workers, int 
         workerGroups.push_back(Coordinate(4, 3));
         workerGroups.push_back(Coordinate(8, 3));
         workerGroups.push_back(Coordinate(2, 0));
+        workerGroups.push_back(Coordinate(1, 0));
+        workerGroups.push_back(Coordinate(3, 4));
+        workerGroups.push_back(Coordinate(5, 1));
+        workerGroups.push_back(Coordinate(2, 3));
         // Register workers' locations
         for (int i = 0; i < 5; ++i)
             workers[i].loc = workerGroups[0];
@@ -188,6 +192,14 @@ std::vector<Coordinate> initWorkerGroupsFixed(std::vector<Worker> &workers, int 
             workers[i].loc = workerGroups[2];
         for (int i = 15; i < 20; ++i)
             workers[i].loc = workerGroups[3];
+        for (int i = 20; i < 25; ++i)
+            workers[i].loc = workerGroups[4];
+        for (int i = 25; i < 30; ++i)
+            workers[i].loc = workerGroups[5];
+        for (int i = 30; i < 35; ++i)
+            workers[i].loc = workerGroups[6];
+        for (int i = 35; i < 40; ++i)
+            workers[i].loc = workerGroups[7];
     }
     
     return workerGroups;
